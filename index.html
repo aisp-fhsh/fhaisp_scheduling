@@ -231,12 +231,14 @@
             // 5. 選擇「設定」(Config) 選項，然後複製整個物件貼到下方
             // ==========================================================
             const firebaseConfig = {
+              // --- ↓↓↓ 將從 Firebase 控制台複製的內容貼在這裡 ↓↓↓ ---
               apiKey: "YOUR_API_KEY",
               authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
               projectId: "YOUR_PROJECT_ID",
               storageBucket: "YOUR_PROJECT_ID.appspot.com",
               messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
               appId: "YOUR_APP_ID"
+              // --- ↑↑↑ 將從 Firebase 控制台複製的內容貼在這裡 ↑↑↑ ---
             };
 
             // If running in a special environment, it might provide its own config. 
@@ -245,10 +247,15 @@
             const appId = typeof __app_id !== 'undefined' ? __app_id : finalFirebaseConfig.projectId;
             const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
+            // 檢查 firebaseConfig 是否已填寫，若未填寫則顯示錯誤訊息並停止執行
+            // 這就是為什麼您的「新增」按鈕沒有作用的原因
             if (!finalFirebaseConfig.apiKey || finalFirebaseConfig.apiKey === "YOUR_API_KEY") {
-                loadingMessage.textContent = '請在 index.html 檔案中填入您的 Firebase 設定資訊。';
+                loadingMessage.innerHTML = `
+                    <p class="text-red-400 font-bold">Firebase 設定未載入！</p>
+                    <p class="text-sm mt-2">請依照程式碼中的註解，在 index.html 檔案中填入您的 Firebase 設定資訊。</p>
+                `;
                 console.error("Firebase config is not set. Please edit index.html and add your project's firebaseConfig object.");
-                return;
+                return; // 停止執行後續程式碼
             }
 
             const app = initializeApp(finalFirebaseConfig);
