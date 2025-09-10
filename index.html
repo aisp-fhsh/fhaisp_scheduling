@@ -1,174 +1,404 @@
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- 元素選擇器 (和你原本的一樣) ---
-        const staffNameInput = document.getElementById('staffNameInput');
-        const staffCategorySelect = document.getElementById('staffCategorySelect');
-        const addStaffBtn = document.getElementById('addStaffBtn');
-        const staffListContainer = document.getElementById('staffList');
-        const availabilityGridContainer = document.getElementById('availabilityGrid');
-        const generateBtn = document.getElementById('generateBtn');
-        const scheduleResultContainer = document.getElementById('scheduleResult');
-        const scheduleDisplay = document.getElementById('scheduleDisplay');
-        const errorMessage = document.getElementById('errorMessage');
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排班系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-        const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+        .glass-container {
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .input-group, .schedule-availability {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .grid-header, .grid-cell {
+            padding: 0.75rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            font-size: 0.875rem;
+        }
         
-        let staffMembers = []; // 儲存人員物件 { name: '名字', category: 'member'/'cadre' }
-        let availability = {}; // 儲存每個人的空閒狀態
-
-        // --- 資料處理函式 ---
-        function loadData() {
-            const storedStaff = localStorage.getItem('staffMembers');
-            const storedAvailability = localStorage.getItem('availability');
-            if (storedStaff) {
-                staffMembers = JSON.parse(storedStaff);
-            }
-            if (storedAvailability) {
-                availability = JSON.parse(storedAvailability);
-            }
-            renderStaffList();
-            renderAvailabilityGrid();
+        .grid-header {
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
-        function saveData() {
-            localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
-            localStorage.setItem('availability', JSON.stringify(availability));
+        .schedule-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
 
-        // --- 渲染畫面函式 ---
-        function renderStaffList() {
-            staffListContainer.innerHTML = '';
-            if (staffMembers.length === 0) {
-                staffListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有人員。</p>';
-                return;
+        .schedule-cell.available {
+            background-color: rgba(139, 232, 139, 0.3);
+        }
+
+        .schedule-cell.unavailable {
+            background-color: rgba(255, 99, 71, 0.3);
+        }
+
+        .person-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .btn {
+            background-color: rgba(74, 144, 226, 0.5);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: rgba(74, 144, 226, 0.7);
+        }
+
+        .btn-red {
+            background-color: rgba(255, 99, 71, 0.5);
+        }
+
+        .btn-red:hover {
+            background-color: rgba(255, 99, 71, 0.7);
+        }
+
+        @media (max-width: 640px) {
+            .glass-container {
+                padding: 1.5rem;
             }
-            staffMembers.forEach(person => {
-                const categoryText = person.category === 'cadre' ? '幹部' : '成員';
-                const personItem = document.createElement('div');
-                personItem.className = 'person-item';
-                personItem.innerHTML = `
-                    <span>${person.name} (${categoryText})</span>
-                    <button class="btn-red p-2 rounded-full w-8 h-8 flex items-center justify-center text-sm" data-name="${person.name}">
-                        &times;
-                    </button>
-                `;
-                staffListContainer.appendChild(personItem);
+            .schedule-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .grid-header {
+                display: none;
+            }
+            .schedule-availability .grid-header {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="glass-container">
+        <h1 class="text-4xl font-bold text-center">排班系統</h1>
+
+        <!-- 人員名單管理 -->
+        <div class="space-y-4">
+            <h2 class="text-2xl font-semibold">人員管理</h2>
+            <div class="input-group">
+                <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
+                <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="member">成員</option>
+                    <option value="cadre">幹部</option>
+                </select>
+                <button id="addStaffBtn" class="btn">新增人員</button>
+            </div>
+            <div id="staffList" class="space-y-2">
+                <!-- Staff members will be rendered here -->
+            </div>
+        </div>
+
+        <!-- 空閒狀態設定 -->
+        <div class="space-y-4">
+            <h2 class="text-2xl font-semibold">設定每日空閒狀態</h2>
+            <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
+            <div class="schedule-availability">
+                <div class="schedule-grid">
+                    <div class="grid-header">姓名</div>
+                    <div class="grid-header">星期一</div>
+                    <div class="grid-header">星期二</div>
+                    <div class="grid-header">星期三</div>
+                    <div class="grid-header">星期四</div>
+                    <div class="grid-header">星期五</div>
+                    <div id="availabilityGrid" class="contents">
+                        <!-- Availability grid will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 產生排班表 -->
+        <div class="flex justify-center">
+            <button id="generateBtn" class="btn btn-red">產生排班表</button>
+        </div>
+
+        <!-- 排班表顯示區 -->
+        <div id="scheduleResult" class="space-y-4 hidden">
+            <h2 class="text-2xl font-semibold">排班表</h2>
+            <div id="scheduleDisplay" class="space-y-4">
+                <!-- Schedule will be displayed here -->
+            </div>
+        </div>
+
+        <!-- 錯誤訊息 -->
+        <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const staffNameInput = document.getElementById('staffNameInput');
+            const staffCategorySelect = document.getElementById('staffCategorySelect');
+            const addStaffBtn = document.getElementById('addStaffBtn');
+            const staffListContainer = document.getElementById('staffList');
+            const availabilityGridContainer = document.getElementById('availabilityGrid');
+            const generateBtn = document.getElementById('generateBtn');
+            const scheduleResultContainer = document.getElementById('scheduleResult');
+            const scheduleDisplay = document.getElementById('scheduleDisplay');
+            const errorMessage = document.getElementById('errorMessage');
+
+            const days = ['第一天', '第二天', '第三天', '第四天', '第五天'];
+            
+            // Store staff as objects to include their category
+            let staffMembers = []; 
+            let availability = {}; // Store true/false for each day
+
+            // Load from localStorage
+            function loadData() {
+                const storedStaff = localStorage.getItem('staffMembers');
+                const storedAvailability = localStorage.getItem('availability');
+                if (storedStaff) {
+                    staffMembers = JSON.parse(storedStaff);
+                }
+                if (storedAvailability) {
+                    availability = JSON.parse(storedAvailability);
+                }
+                renderStaffList();
+                renderAvailabilityGrid();
+            }
+
+            function saveData() {
+                localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
+                localStorage.setItem('availability', JSON.stringify(availability));
+            }
+
+            // Render staff list and remove buttons
+            function renderStaffList() {
+                staffListContainer.innerHTML = '';
+                if (staffMembers.length === 0) {
+                    staffListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有人員。</p>';
+                }
+                staffMembers.forEach(person => {
+                    const categoryText = person.category === 'cadre' ? '幹部' : '成員';
+                    const personItem = document.createElement('div');
+                    personItem.className = 'person-item';
+                    personItem.innerHTML = `
+                        <span>${person.name} (${categoryText})</span>
+                        <button class="btn-red p-2 rounded-full w-8 h-8 flex items-center justify-center text-sm" data-name="${person.name}">
+                            &times;
+                        </button>
+                    `;
+                    staffListContainer.appendChild(personItem);
+                });
+            }
+
+            // Render availability grid with toggle functionality
+            function renderAvailabilityGrid() {
+                availabilityGridContainer.innerHTML = '';
+                staffMembers.forEach(person => {
+                    // Initialize availability if it doesn't exist
+                    if (!availability[person.name]) {
+                        availability[person.name] = new Array(5).fill(true);
+                    }
+                    const row = document.createElement('div');
+                    row.className = 'contents';
+                    
+                    const nameCell = document.createElement('div');
+                    nameCell.className = 'grid-cell text-left font-bold sm:col-span-1 col-span-2';
+                    nameCell.textContent = person.name;
+                    row.appendChild(nameCell);
+
+                    for (let i = 0; i < 5; i++) {
+                        const dayCell = document.createElement('div');
+                        dayCell.className = `grid-cell schedule-cell ${availability[person.name][i] ? 'available' : 'unavailable'}`;
+                        dayCell.dataset.day = i;
+                        dayCell.dataset.person = person.name;
+                        dayCell.textContent = days[i];
+                        dayCell.addEventListener('click', () => {
+                            availability[person.name][i] = !availability[person.name][i];
+                            dayCell.classList.toggle('available');
+                            dayCell.classList.toggle('unavailable');
+                            saveData();
+                        });
+                        row.appendChild(dayCell);
+                    }
+                    availabilityGridContainer.appendChild(row);
+                });
+            }
+
+            // Add staff member
+            addStaffBtn.addEventListener('click', () => {
+                const name = staffNameInput.value.trim();
+                const category = staffCategorySelect.value;
+                if (name && !staffMembers.some(p => p.name === name)) {
+                    staffMembers.push({ name: name, category: category });
+                    availability[name] = new Array(5).fill(true); // Default to available for all days
+                    saveData();
+                    renderStaffList();
+                    renderAvailabilityGrid();
+                    staffNameInput.value = '';
+                }
             });
-        }
 
-        function renderAvailabilityGrid() {
-            availabilityGridContainer.innerHTML = '';
-            staffMembers.forEach(person => {
-                if (!availability[person.name]) {
-                    availability[person.name] = new Array(5).fill(true); // 預設全部有空
+            // Remove staff member
+            staffListContainer.addEventListener('click', (event) => {
+                if (event.target.tagName === 'BUTTON') {
+                    const name = event.target.dataset.name;
+                    staffMembers = staffMembers.filter(p => p.name !== name);
+                    delete availability[name];
+                    saveData();
+                    renderStaffList();
+                    renderAvailabilityGrid();
+                }
+            });
+
+            // Generate the schedule
+            generateBtn.addEventListener('click', () => {
+                if (staffMembers.length < 3) {
+                    displayError('人員太少，無法排班 (需要至少3人)');
+                    return;
                 }
                 
-                // 姓名欄位
-                const nameCell = document.createElement('div');
-                nameCell.className = 'grid-cell font-bold';
-                nameCell.textContent = person.name;
-                availabilityGridContainer.appendChild(nameCell);
+                scheduleResultContainer.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+                scheduleDisplay.innerHTML = '';
 
-                // 星期一到五的狀態欄位
-                for (let i = 0; i < 5; i++) {
-                    const dayCell = document.createElement('div');
-                    dayCell.className = `grid-cell schedule-cell ${availability[person.name][i] ? 'available' : 'unavailable'}`;
-                    dayCell.dataset.day = i;
-                    dayCell.dataset.person = person.name;
-                    // 這裡不顯示文字，只用顏色區分
-                    dayCell.addEventListener('click', () => {
-                        // --- 這裡是你的程式碼被切斷的地方，現在已補全 ---
-                        availability[person.name][i] = !availability[person.name][i];
-                        renderAvailabilityGrid(); // 重新渲染以更新顏色
-                        saveData(); // 儲存變更
+                const maxRetries = 100;
+                let scheduleFound = false;
+                let generatedSchedule = [];
+
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    const currentSchedule = new Array(5).fill(null).map(() => []);
+                    const workCounts = {};
+                    staffMembers.forEach(p => workCounts[p.name] = 0);
+                    let validAttempt = true;
+
+                    // Step 1: Schedule cadres first, prioritizing those with fewer shifts
+                    const shuffledCadres = [...staffMembers.filter(p => p.category === 'cadre')].sort(() => 0.5 - Math.random());
+                    let cadreIndex = 0;
+                    for (let day = 0; day < 5; day++) {
+                        const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name][day]);
+                        
+                        if (availableCadres.length === 0) {
+                            validAttempt = false;
+                            break;
+                        }
+                        
+                        // Select a cadre for the day
+                        const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
+                        currentSchedule[day].push(cadreToSchedule.name);
+                        workCounts[cadreToSchedule.name]++;
+                    }
+                    if (!validAttempt) continue;
+
+                    // Step 2: Fill remaining spots (2 per day)
+                    for (let day = 0; day < 5; day++) {
+                        const scheduledCadre = currentSchedule[day][0];
+                        const availableOthers = staffMembers.filter(p => 
+                            p.name !== scheduledCadre && availability[p.name][day]
+                        );
+                        
+                        if (availableOthers.length < 2) {
+                            validAttempt = false;
+                            break;
+                        }
+
+                        // Prioritize people with fewer shifts
+                        const shuffledOthers = [...availableOthers].sort((a, b) => workCounts[a.name] - workCounts[b.name]);
+                        
+                        for (let i = 0; i < 2; i++) {
+                            const person = shuffledOthers[i];
+                            currentSchedule[day].push(person.name);
+                            workCounts[person.name]++;
+                        }
+                    }
+                    if (!validAttempt) continue;
+
+                    // Final Check: Ensure everyone has 1 or 2 shifts
+                    const allCountsValid = staffMembers.every(p => {
+                        const count = workCounts[p.name];
+                        return count >= 1 && count <= 2;
                     });
-                    availabilityGridContainer.appendChild(dayCell);
+
+                    if (allCountsValid) {
+                        generatedSchedule = currentSchedule;
+                        scheduleFound = true;
+                        break;
+                    }
+                }
+
+                if (scheduleFound) {
+                    displaySchedule(generatedSchedule);
+                } else {
+                    displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
                 }
             });
-        }
-        
-        // --- 核心功能：新增、刪除、產生排班表 ---
 
-        // 1. 新增人員
-        function addStaff() {
-            const name = staffNameInput.value.trim();
-            const category = staffCategorySelect.value;
-            if (name && !staffMembers.some(p => p.name === name)) {
-                staffMembers.push({ name, category });
-                staffNameInput.value = '';
-                renderStaffList();
-                renderAvailabilityGrid();
-                saveData();
-            } else if (name) {
-                alert('此姓名已存在！');
-            }
-        }
-
-        // 2. 刪除人員 (使用事件委派)
-        function removeStaff(e) {
-            if (e.target && e.target.tagName === 'BUTTON' && e.target.dataset.name) {
-                const nameToRemove = e.target.dataset.name;
-                staffMembers = staffMembers.filter(p => p.name !== nameToRemove);
-                delete availability[nameToRemove]; // 同時刪除空閒資料
-                renderStaffList();
-                renderAvailabilityGrid();
-                saveData();
-            }
-        }
-
-        // 3. 產生排班表
-        function generateSchedule() {
-            scheduleResultContainer.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-            scheduleDisplay.innerHTML = '';
-
-            const cadres = staffMembers.filter(p => p.category === 'cadre');
-            const members = staffMembers.filter(p => p.category === 'member');
-            
-            let schedule = {};
-
-            for (let i = 0; i < 5; i++) {
-                const day = days[i];
-                schedule[day] = [];
-
-                // 找出當天有空的幹部和成員
-                const availableCadres = cadres.filter(p => availability[p.name][i]);
-                const availableMembers = members.filter(p => availability[p.name][i]);
-
-                // 簡單排班邏輯：每天盡量選1個幹部 + 1個成員
-                // 為了避免重複，我們打亂順序
-                const shuffledCadres = availableCadres.sort(() => 0.5 - Math.random());
-                const shuffledMembers = availableMembers.sort(() => 0.5 - Math.random());
-
-                if (shuffledCadres.length > 0) {
-                    schedule[day].push(shuffledCadres[0].name);
-                }
-                if (shuffledMembers.length > 0) {
-                    schedule[day].push(shuffledMembers[0].name);
-                }
-
-                if (schedule[day].length < 2) {
-                     errorMessage.textContent = `${day}人力不足，無法排出理想班表！`;
-                     errorMessage.classList.remove('hidden');
-                }
+            function displaySchedule(schedule) {
+                schedule.forEach((people, index) => {
+                    const dayItem = document.createElement('div');
+                    dayItem.className = 'bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2';
+                    dayItem.innerHTML = `
+                        <h3 class="text-xl font-bold">${days[index]}</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            ${people.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    `;
+                    scheduleDisplay.appendChild(dayItem);
+                });
+                scheduleResultContainer.classList.remove('hidden');
             }
 
-            // 將結果顯示在畫面上
-            for (const day in schedule) {
-                const dayElement = document.createElement('div');
-                dayElement.className = "p-4 bg-gray-800 rounded-lg";
-                const staffText = schedule[day].length > 0 ? schedule[day].join('、') : '本日無人';
-                dayElement.innerHTML = `<h3 class="font-bold text-lg">${day}</h3><p>${staffText}</p>`;
-                scheduleDisplay.appendChild(dayElement);
+            function displayError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
             }
-        }
-        
-        // --- 綁定所有事件監聽器 ---
-        addStaffBtn.addEventListener('click', addStaff);
-        staffListContainer.addEventListener('click', removeStaff);
-        generateBtn.addEventListener('click', generateSchedule);
 
-        // --- 初始載入 ---
-        loadData();
-    });
-</script>
+            // Initial load
+            loadData();
+        });
+    </script>
+</body>
+</html>
