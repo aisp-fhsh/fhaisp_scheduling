@@ -553,7 +553,7 @@
             });
 
             // --- Search Logic ---
-            currentSearchBtn.addEventListener('click', () => {
+            function performCurrentSearch() {
                 const searchTerm = currentSearchInput.value.trim().toLowerCase();
                 document.querySelectorAll('#scheduleDisplay .schedule-day-item').forEach(item => {
                     item.classList.remove('highlight');
@@ -564,36 +564,36 @@
                         }
                     }
                 });
-            });
+            }
 
             function highlightCalendarFromSearch() {
                 const searchTerm = historySearchInput.value.trim().toLowerCase();
-                if (!searchTerm) return;
+                // Clear previous highlights first
+                document.querySelectorAll('.calendar-day').forEach(dayEl => dayEl.classList.remove('search-highlight'));
+                
+                if (!searchTerm) return [];
                 
                 const foundDates = Object.keys(scheduleHistory).filter(date => 
                     scheduleHistory[date].some(name => name.toLowerCase().includes(searchTerm))
                 );
 
                 document.querySelectorAll('.calendar-day').forEach(dayEl => {
-                    dayEl.classList.remove('search-highlight');
                     if (foundDates.includes(dayEl.dataset.date)) {
                         dayEl.classList.add('search-highlight');
                     }
                 });
                 return foundDates;
             }
-
-            historySearchBtn.addEventListener('click', () => {
-                const searchTerm = historySearchInput.value.trim();
-                document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('search-highlight'));
+            
+            function performHistorySearch() {
+                 const searchTerm = historySearchInput.value.trim();
+                const foundDates = highlightCalendarFromSearch();
 
                 if (!searchTerm) {
                     historyScheduleDisplay.innerHTML = '<p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>';
                     return;
                 }
                 
-                const foundDates = highlightCalendarFromSearch();
-
                 if (foundDates.length > 0) {
                      historyScheduleDisplay.innerHTML = `
                         <h3 class="text-xl font-bold mb-2">找到 ${searchTerm} 在以下 ${foundDates.length} 天有排班：</h3>
@@ -604,7 +604,13 @@
                 } else {
                      historyScheduleDisplay.innerHTML = `<p class="text-center text-gray-400">在歷史紀錄中找不到 ${searchTerm} 的排班。</p>`;
                 }
-            });
+            }
+            
+            currentSearchBtn.addEventListener('click', performCurrentSearch);
+            currentSearchInput.addEventListener('input', performCurrentSearch);
+
+            historySearchBtn.addEventListener('click', performHistorySearch);
+            historySearchInput.addEventListener('input', performHistorySearch);
 
 
             // --- Schedule Generation Logic ---
