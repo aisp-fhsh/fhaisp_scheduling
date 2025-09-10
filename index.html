@@ -219,16 +219,39 @@
             let availability = {};
 
             // --- Firebase Setup ---
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-scheduling-app';
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            //
+            // ========================= 重要設定 =========================
+            // 請將您從 Firebase 專案設定中複製的設定物件貼到下方
+            //
+            // 如何取得?
+            // 1. 前往 Firebase 控制台 (console.firebase.google.com)
+            // 2. 選擇您的專案
+            // 3. 點擊左上角的齒輪圖示 > 專案設定
+            // 4. 在「您的應用程式」卡片中，找到您的 Web 應用程式
+            // 5. 選擇「設定」(Config) 選項，然後複製整個物件貼到下方
+            // ==========================================================
+            const firebaseConfig = {
+              apiKey: "YOUR_API_KEY",
+              authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+              projectId: "YOUR_PROJECT_ID",
+              storageBucket: "YOUR_PROJECT_ID.appspot.com",
+              messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+              appId: "YOUR_APP_ID"
+            };
+
+            // If running in a special environment, it might provide its own config. 
+            // Otherwise, it uses the one you pasted above.
+            const finalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : finalFirebaseConfig.projectId;
             const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-            if (Object.keys(firebaseConfig).length === 0) {
-                 loadingMessage.textContent = 'Firebase 設定未載入，應用無法運行。';
-                 return;
+            if (!finalFirebaseConfig.apiKey || finalFirebaseConfig.apiKey === "YOUR_API_KEY") {
+                loadingMessage.textContent = '請在 index.html 檔案中填入您的 Firebase 設定資訊。';
+                console.error("Firebase config is not set. Please edit index.html and add your project's firebaseConfig object.");
+                return;
             }
 
-            const app = initializeApp(firebaseConfig);
+            const app = initializeApp(finalFirebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
 
@@ -285,17 +308,13 @@
             
             async function saveScheduleToHistory(schedule, startDate) {
                 try {
-                    // Firestore doesn't support nested arrays directly.
-                    // Convert the schedule array [ ['p1', 'p2'], ['p3', 'p4'] ]
-                    // into a map object { "星期一": ["p1", "p2"], "星期二": ["p3", "p4"] }
-                    // which is a supported data structure.
                     const scheduleToSave = {};
                     schedule.forEach((people, index) => {
                         scheduleToSave[days[index]] = people;
                     });
 
                      await addDoc(historyCollectionRef, {
-                        schedule: scheduleToSave, // Save the converted map object
+                        schedule: scheduleToSave,
                         startDate: startDate,
                         createdAt: serverTimestamp()
                     });
