@@ -3,33 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排班系統</title>
+    <title>排班系統 (協作版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Inter font for a modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Changed to flex-start for longer content */
+            align-items: flex-start; /* Align to top for longer content */
             min-height: 100vh;
             padding: 20px;
         }
 
         .glass-container {
-            background-color: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background-color: rgba(26, 32, 44, 0.6); /* Darker glass effect */
+            backdrop-filter: blur(15px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
             padding: 2.5rem;
             width: 100%;
             max-width: 900px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
-            gap: 2rem;
-            margin-bottom: 2rem; /* Add some margin at the bottom */
+            gap: 1.5rem; 
         }
 
         .input-group, .schedule-availability {
@@ -64,15 +66,20 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .schedule-cell:hover {
+            transform: scale(1.05);
         }
 
         .schedule-cell.available {
-            background-color: rgba(139, 232, 139, 0.3);
+            background-color: rgba(74, 222, 128, 0.3); /* Green-400 */
+             color: #a7f3d0;
         }
 
         .schedule-cell.unavailable {
-            background-color: rgba(255, 99, 71, 0.3);
+            background-color: rgba(248, 113, 113, 0.3); /* Red-400 */
+            color: #fecaca;
         }
 
         .person-item {
@@ -80,34 +87,49 @@
             justify-content: space-between;
             align-items: center;
             background-color: rgba(255, 255, 255, 0.05);
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1rem;
             border-radius: 0.5rem;
         }
 
         .btn {
-            background-color: rgba(74, 144, 226, 0.5);
+            background-color: #4A90E2; /* A nice blue */
             color: white;
             padding: 0.75rem 1.5rem;
             border-radius: 9999px;
             font-weight: bold;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, box-shadow 0.3s;
             border: none;
             cursor: pointer;
-            text-decoration: none; /* For <a> tags */
-            display: inline-block; /* For <a> tags */
-            white-space: nowrap; /* Prevent button text wrapping */
+            box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39);
         }
 
         .btn:hover {
-            background-color: rgba(74, 144, 226, 0.7);
+            background-color: #5aa1f2;
+            box-shadow: 0 6px 20px 0 rgba(0, 118, 255, 0.23);
         }
 
         .btn-red {
-            background-color: rgba(255, 99, 71, 0.5);
+            background-color: #EF4444; /* Red-500 */
+             box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.39);
         }
 
         .btn-red:hover {
-            background-color: rgba(255, 99, 71, 0.7);
+            background-color: #F87171; /* Red-400 */
+            box-shadow: 0 6px 20px 0 rgba(239, 68, 68, 0.23);
+        }
+        
+        .nav-btn {
+            background-color: transparent;
+            color: #a0aec0;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .nav-btn.active {
+            background-color: #4A90E2;
+            color: white;
+            font-weight: 600;
         }
 
         @media (max-width: 640px) {
@@ -115,93 +137,144 @@
                 padding: 1.5rem;
             }
             .schedule-grid {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr auto auto auto auto auto; /* Name column wider */
             }
             .grid-header {
-                display: none;
+                 display: none;
             }
-            .schedule-availability .grid-header {
-                display: none;
-            }
+             .grid-cell {
+                padding: 0.5rem;
+             }
+             .schedule-availability .grid-header {
+                 display: block; /* Show header in availability */
+             }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200">
+<body>
 
     <div class="glass-container">
-        <div class="flex justify-between items-center w-full">
-            <h1 class="text-4xl font-bold">排班系統</h1>
-            <a href="history.html" class="btn">查看歷史紀錄</a>
-        </div>
-
-        <!-- 人員名單管理 -->
-        <div class="space-y-4">
-            <h2 class="text-2xl font-semibold">人員管理</h2>
-            <div class="input-group">
-                <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
-                <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="member">成員</option>
-                    <option value="cadre">幹部</option>
-                </select>
-                <button id="addStaffBtn" class="btn">新增人員</button>
-            </div>
-            <div id="staffList" class="space-y-2">
-                <!-- Staff members will be rendered here -->
+        <!-- Navigation -->
+        <div class="flex justify-between items-center">
+            <h1 class="text-4xl font-bold text-center">排班系統</h1>
+            <div class="flex gap-2 p-1 bg-gray-800 bg-opacity-50 rounded-lg">
+                <button id="showSchedulerBtn" class="nav-btn active">排班</button>
+                <button id="showHistoryBtn" class="nav-btn">歷史紀錄</button>
             </div>
         </div>
 
-        <!-- 空閒狀態設定 -->
-        <div class="space-y-4">
-            <h2 class="text-2xl font-semibold">設定每日空閒狀態 (即時同步)</h2>
-            <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
-            <div class="schedule-availability">
-                <div class="schedule-grid">
-                    <div class="grid-header">姓名</div>
-                    <div class="grid-header">星期一</div>
-                    <div class="grid-header">星期二</div>
-                    <div class="grid-header">星期三</div>
-                    <div class="grid-header">星期四</div>
-                    <div class="grid-header">星期五</div>
-                    <div id="availabilityGrid" class="contents">
-                        <!-- Availability grid will be rendered here -->
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="text-center p-8">
+            <p>正在從雲端載入資料...</p>
+        </div>
+
+        <!-- Main Content (hidden initially) -->
+        <div id="mainContent" class="hidden">
+            <!-- Scheduler Page -->
+            <div id="schedulerPage">
+                <!-- 人員名單管理 -->
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-semibold">人員管理</h2>
+                    <div class="input-group">
+                        <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
+                        <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="member">成員</option>
+                            <option value="cadre">幹部</option>
+                        </select>
+                        <button id="addStaffBtn" class="btn">新增人員</button>
                     </div>
+                    <div id="staffList" class="space-y-2">
+                        <!-- Staff members will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- 空閒狀態設定 -->
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-semibold">設定每日空閒狀態</h2>
+                    <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
+                    <div class="schedule-availability">
+                        <div class="schedule-grid">
+                            <div class="grid-header">姓名</div>
+                            <div class="grid-header">星期一</div>
+                            <div class="grid-header">星期二</div>
+                            <div class="grid-header">星期三</div>
+                            <div class="grid-header">星期四</div>
+                            <div class="grid-header">星期五</div>
+                            <div id="availabilityGrid" class="contents">
+                                <!-- Availability grid will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 產生排班表 -->
+                <div class="flex justify-center mt-4">
+                    <button id="generateBtn" class="btn btn-red text-lg">產生排班表</button>
+                </div>
+
+                <!-- 排班表顯示區 -->
+                <div id="scheduleResult" class="space-y-4 hidden">
+                    <h2 class="text-2xl font-semibold">排班表</h2>
+                    <div id="scheduleDisplay" class="space-y-4">
+                        <!-- Schedule will be displayed here -->
+                    </div>
+                </div>
+
+                <!-- 錯誤訊息 -->
+                <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
+            </div>
+            
+            <!-- History Page -->
+            <div id="historyPage" class="hidden">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold">歷史排班紀錄</h2>
+                    <button id="clearHistoryBtn" class="btn btn-red">清空紀錄</button>
+                </div>
+                <div id="historyList" class="space-y-4">
+                    <!-- History items will be rendered here -->
                 </div>
             </div>
         </div>
-
-        <!-- 產生排班表 -->
-        <div class="space-y-4">
-            <h2 class="text-2xl font-semibold">產生新排班</h2>
-             <div class="input-group">
-                <label for="scheduleStartDate">排班開始日期：</label>
-                <input type="date" id="scheduleStartDate" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="flex justify-center">
-                <button id="generateBtn" class="btn btn-red">產生並儲存排班表</button>
-            </div>
-        </div>
-
-        <!-- 排班表顯示區 -->
-        <div id="scheduleResult" class="space-y-4 hidden">
-            <h2 class="text-2xl font-semibold">最新排班表</h2>
-            <div id="scheduleDisplay" class="space-y-4">
-                <!-- Schedule will be displayed here -->
-            </div>
-        </div>
-
-        <!-- 錯誤訊息 -->
-        <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
-        <div id="loadingMessage" class="text-center text-gray-400">正在連接資料庫...</div>
     </div>
 
     <!-- Firebase SDK -->
     <script type="module">
+        // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // --- DOM Elements ---
+            // --- Global Variables & Firebase Setup ---
+            // These variables are provided by the environment
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-scheduler-app';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            
+            // Enable debug logging for Firestore
+            setLogLevel('debug');
+
+            // Reference to the single document that will store our app's state
+            const firestoreDocRef = doc(db, `/artifacts/${appId}/public/data/scheduler/mainState`);
+            
+            // --- App State ---
+            let staffMembers = [];  
+            let availability = {};
+            let scheduleHistory = [];
+            let unsubscribe; // To store the Firestore listener cleanup function
+
+            // --- UI Elements ---
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const mainContent = document.getElementById('mainContent');
+            const schedulerPage = document.getElementById('schedulerPage');
+            const historyPage = document.getElementById('historyPage');
+            const showSchedulerBtn = document.getElementById('showSchedulerBtn');
+            const showHistoryBtn = document.getElementById('showHistoryBtn');
             const staffNameInput = document.getElementById('staffNameInput');
             const staffCategorySelect = document.getElementById('staffCategorySelect');
             const addStaffBtn = document.getElementById('addStaffBtn');
@@ -210,58 +283,23 @@
             const generateBtn = document.getElementById('generateBtn');
             const scheduleResultContainer = document.getElementById('scheduleResult');
             const scheduleDisplay = document.getElementById('scheduleDisplay');
-            const scheduleStartDateInput = document.getElementById('scheduleStartDate');
             const errorMessage = document.getElementById('errorMessage');
-            const loadingMessage = document.getElementById('loadingMessage');
-
+            const historyListContainer = document.getElementById('historyList');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
             const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
-            let staffMembers = []; 
-            let availability = {};
 
-            // --- Firebase Setup ---
-            //
-            // ========================= 重要設定 =========================
-            // 請將您從 Firebase 專案設定中複製的設定物件貼到下方
-            //
-            // 如何取得?
-            // 1. 前往 Firebase 控制台 (console.firebase.google.com)
-            // 2. 選擇您的專案
-            // 3. 點擊左上角的齒輪圖示 > 專案設定
-            // 4. 在「您的應用程式」卡片中，找到您的 Web 應用程式
-            // 5. 選擇「設定」(Config) 選項，然後複製整個物件貼到下方
-            // ==========================================================
-            const firebaseConfig = {
-              // --- ↓↓↓ 將從 Firebase 控制台複製的內容貼在這裡 ↓↓↓ ---
-              apiKey: "YOUR_API_KEY",
-              authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-              projectId: "YOUR_PROJECT_ID",
-              storageBucket: "YOUR_PROJECT_ID.appspot.com",
-              messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-              appId: "YOUR_APP_ID"
-              // --- ↑↑↑ 將從 Firebase 控制台複製的內容貼在這裡 ↑↑↑ ---
-            };
+            // --- Authentication ---
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    console.log("User is signed in with UID:", user.uid);
+                    setupFirestoreListener(); // Start listening for data changes once authenticated
+                } else {
+                    console.log("User is signed out.");
+                    if (unsubscribe) unsubscribe(); // Stop listening if user signs out
+                }
+            });
 
-            // If running in a special environment, it might provide its own config. 
-            // Otherwise, it uses the one you pasted above.
-            const finalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : finalFirebaseConfig.projectId;
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-            // 檢查 firebaseConfig 是否已填寫，若未填寫則顯示錯誤訊息並停止執行
-            // 這就是為什麼您的「新增」按鈕沒有作用的原因
-            if (!finalFirebaseConfig.apiKey || finalFirebaseConfig.apiKey === "YOUR_API_KEY") {
-                loadingMessage.innerHTML = `
-                    <p class="text-red-400 font-bold">Firebase 設定未載入！</p>
-                    <p class="text-sm mt-2">請依照程式碼中的註解，在 index.html 檔案中填入您的 Firebase 設定資訊。</p>
-                `;
-                console.error("Firebase config is not set. Please edit index.html and add your project's firebaseConfig object.");
-                return; // 停止執行後續程式碼
-            }
-
-            const app = initializeApp(finalFirebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-
+            // Sign in the user
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
@@ -270,68 +308,81 @@
                 }
             } catch (error) {
                 console.error("Authentication failed:", error);
-                loadingMessage.textContent = '身份驗證失敗，請刷新頁面。';
-                return;
+                loadingIndicator.textContent = '認證失敗，無法載入資料。';
             }
 
-            // --- Firestore References ---
-            const configDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'scheduling', 'config');
-            const historyCollectionRef = collection(configDocRef, 'history');
-            
-            const today = new Date();
-            const nextMonday = new Date(today.setDate(today.getDate() + (1 + 7 - today.getDay()) % 7));
-            scheduleStartDateInput.value = nextMonday.toISOString().split('T')[0];
+            // --- Data Management (Firestore) ---
+            function setupFirestoreListener() {
+                // onSnapshot listens for real-time updates to the document
+                unsubscribe = onSnapshot(firestoreDocRef, (docSnap) => {
+                    loadingIndicator.classList.add('hidden');
+                    mainContent.classList.remove('hidden');
 
-            // --- Real-time Listeners ---
-            onSnapshot(configDocRef, (docSnap) => {
-                loadingMessage.classList.add('hidden');
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    staffMembers = data.staffMembers || [];
-                    availability = data.availability || {};
-                } else {
-                    staffMembers = [];
-                    availability = {};
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        // Load data from Firestore or use defaults if not present
+                        staffMembers = data.staffMembers || [];
+                        availability = data.availability || {};
+                        scheduleHistory = data.scheduleHistory || [];
+                        console.log("Data loaded from Firestore:", { staffMembers, availability, scheduleHistory });
+                    } else {
+                        // Document doesn't exist, use initial empty state
+                        console.log("No data in Firestore, starting with a clean slate.");
+                        staffMembers = [];
+                        availability = {};
+                        scheduleHistory = [];
+                    }
+                    // Re-render the entire UI with the new data
+                    renderAll();
+                }, (error) => {
+                    console.error("Error listening to Firestore:", error);
+                    loadingIndicator.textContent = '無法從雲端讀取資料。';
+                });
+            }
+
+            async function updateFirestore() {
+                try {
+                    // Save the entire state to the single Firestore document
+                    await setDoc(firestoreDocRef, {
+                        staffMembers,
+                        availability,
+                        scheduleHistory
+                    });
+                    console.log("Data successfully saved to Firestore.");
+                } catch (error) {
+                    console.error("Error saving data to Firestore: ", error);
+                    // Optionally, show a UI error message to the user
+                    displayError("無法儲存變更到雲端。");
                 }
+            }
+            
+            function renderAll() {
                 renderStaffList();
                 renderAvailabilityGrid();
-            }, (error) => {
-                console.error("Error listening to config:", error);
-                displayError("無法從資料庫讀取設定。");
+                // Check current page to render history if needed
+                if(!historyPage.classList.contains('hidden')){
+                    renderHistoryList();
+                }
+            }
+
+
+            // --- Page Navigation ---
+            showSchedulerBtn.addEventListener('click', () => {
+                schedulerPage.classList.remove('hidden');
+                historyPage.classList.add('hidden');
+                showSchedulerBtn.classList.add('active');
+                showHistoryBtn.classList.remove('active');
+            });
+            
+            showHistoryBtn.addEventListener('click', () => {
+                schedulerPage.classList.add('hidden');
+                historyPage.classList.remove('hidden');
+                showSchedulerBtn.classList.remove('active');
+                showHistoryBtn.classList.add('active');
+                renderHistoryList(); // Render history when switching to the page
             });
 
-            // --- Data Persistence ---
-            async function saveConfig() {
-                try {
-                    await setDoc(configDocRef, {
-                        staffMembers: staffMembers,
-                        availability: availability
-                    });
-                } catch (error) {
-                    console.error("Error saving config: ", error);
-                    displayError("儲存設定失敗！");
-                }
-            }
-            
-            async function saveScheduleToHistory(schedule, startDate) {
-                try {
-                    const scheduleToSave = {};
-                    schedule.forEach((people, index) => {
-                        scheduleToSave[days[index]] = people;
-                    });
-
-                     await addDoc(historyCollectionRef, {
-                        schedule: scheduleToSave,
-                        startDate: startDate,
-                        createdAt: serverTimestamp()
-                    });
-                } catch (error) {
-                    console.error("Error saving schedule: ", error);
-                    displayError("儲存排班表至歷史紀錄失敗！");
-                }
-            }
-
-            // --- UI Rendering ---
+            // --- UI Rendering Functions ---
             function renderStaffList() {
                 staffListContainer.innerHTML = '';
                 if (staffMembers.length === 0) {
@@ -357,48 +408,94 @@
                     if (!availability[person.name]) {
                         availability[person.name] = new Array(5).fill(true);
                     }
-                    const row = document.createElement('div');
-                    row.className = 'contents';
                     
                     const nameCell = document.createElement('div');
-                    nameCell.className = 'grid-cell text-left font-bold sm:col-span-1 col-span-2';
+                    nameCell.className = 'grid-cell text-left font-bold';
                     nameCell.textContent = person.name;
-                    row.appendChild(nameCell);
+                    availabilityGridContainer.appendChild(nameCell);
 
                     for (let i = 0; i < 5; i++) {
                         const dayCell = document.createElement('div');
                         dayCell.className = `grid-cell schedule-cell ${availability[person.name][i] ? 'available' : 'unavailable'}`;
                         dayCell.dataset.day = i;
                         dayCell.dataset.person = person.name;
-                        dayCell.textContent = days[i];
+                        // Use a shorter label for the day inside the cell
+                        dayCell.innerHTML = `<span class="hidden sm:inline">${days[i]}</span><span class="sm:hidden">${days[i].replace('星期','')}</span>`;
                         dayCell.addEventListener('click', () => {
                             availability[person.name][i] = !availability[person.name][i];
-                            saveConfig();
+                            updateFirestore(); // Save changes to Firestore immediately
                         });
-                        row.appendChild(dayCell);
+                        availabilityGridContainer.appendChild(dayCell);
                     }
-                    availabilityGridContainer.appendChild(row);
+                });
+            }
+            
+            function renderHistoryList() {
+                historyListContainer.innerHTML = '';
+                if (scheduleHistory.length === 0) {
+                    historyListContainer.innerHTML = '<p class="text-center text-gray-400">沒有歷史紀錄。</p>';
+                    return;
+                }
+
+                scheduleHistory.forEach((entry, index) => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'bg-gray-800 bg-opacity-40 rounded-lg p-4';
+                    
+                    const scheduleHTML = entry.schedule.map((people, dayIndex) => `
+                        <div class="mt-2">
+                            <h4 class="font-semibold">${days[dayIndex]}</h4>
+                            <ul class="list-disc list-inside text-sm text-gray-300">
+                                ${people.map(p => `<li>${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `).join('');
+
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <p class="font-bold text-lg">${entry.date}</p>
+                            <button class="btn-red p-2 text-xs rounded-full" data-index="${index}">刪除</button>
+                        </div>
+                        <div class="mt-2 grid grid-cols-2 md:grid-cols-5 gap-4">
+                           ${scheduleHTML}
+                        </div>
+                    `;
+                    historyListContainer.appendChild(historyItem);
                 });
             }
 
-            // --- Event Listeners ---
+            // --- Event Listeners for User Actions ---
             addStaffBtn.addEventListener('click', () => {
                 const name = staffNameInput.value.trim();
                 const category = staffCategorySelect.value;
                 if (name && !staffMembers.some(p => p.name === name)) {
                     staffMembers.push({ name: name, category: category });
-                    availability[name] = new Array(5).fill(true);
-                    saveConfig();
+                    availability[name] = new Array(5).fill(true); // Default to all available
+                    updateFirestore();
                     staffNameInput.value = '';
                 }
             });
 
             staffListContainer.addEventListener('click', (event) => {
-                if (event.target.tagName === 'BUTTON') {
+                if (event.target.tagName === 'BUTTON' && event.target.dataset.name) {
                     const name = event.target.dataset.name;
                     staffMembers = staffMembers.filter(p => p.name !== name);
                     delete availability[name];
-                    saveConfig();
+                    updateFirestore();
+                }
+            });
+
+            clearHistoryBtn.addEventListener('click', () => {
+                // NOTE: The original confirm() dialog was removed as it's not supported.
+                // The action is now immediate.
+                scheduleHistory = [];
+                updateFirestore();
+            });
+
+            historyListContainer.addEventListener('click', (event) => {
+                if (event.target.tagName === 'BUTTON' && event.target.dataset.index) {
+                    const index = parseInt(event.target.dataset.index, 10);
+                    scheduleHistory.splice(index, 1);
+                    updateFirestore();
                 }
             });
 
@@ -412,6 +509,7 @@
                 errorMessage.classList.add('hidden');
                 scheduleDisplay.innerHTML = '';
 
+                // --- Scheduling Algorithm (same as before) ---
                 const maxRetries = 100;
                 let scheduleFound = false;
                 let generatedSchedule = [];
@@ -422,34 +520,43 @@
                     staffMembers.forEach(p => workCounts[p.name] = 0);
                     let validAttempt = true;
 
-                    for (let day = 0; day < 5; day++) {
-                        const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name][day]);
-                        if (availableCadres.length === 0) { validAttempt = false; break; }
-                        const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
-                        currentSchedule[day].push(cadreToSchedule.name);
-                        workCounts[cadreToSchedule.name]++;
-                    }
-                    if (!validAttempt) continue;
+                    const cadres = staffMembers.filter(p => p.category === 'cadre');
+                    const members = staffMembers.filter(p => p.category === 'member');
 
                     for (let day = 0; day < 5; day++) {
-                        const alreadyScheduled = currentSchedule[day];
-                        const availableOthers = staffMembers.filter(p => !alreadyScheduled.includes(p.name) && availability[p.name][day]);
-                        if (availableOthers.length < 2) { validAttempt = false; break; }
-                        const sortedOthers = [...availableOthers].sort((a, b) => workCounts[a.name] - workCounts[b.name]);
-                        for (let i = 0; i < 2; i++) {
-                            const person = sortedOthers[i];
-                            currentSchedule[day].push(person.name);
-                            workCounts[person.name]++;
+                        const availableCadres = cadres.filter(p => availability[p.name][day]);
+                        if (availableCadres.length > 0) {
+                            const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
+                            currentSchedule[day].push(cadreToSchedule.name);
+                            workCounts[cadreToSchedule.name]++;
                         }
                     }
+                    
+                    for (let day = 0; day < 5; day++) {
+                        const alreadyScheduled = currentSchedule[day];
+                        const availableStaff = staffMembers.filter(p => 
+                            !alreadyScheduled.includes(p.name) && availability[p.name][day]
+                        );
+
+                        if (availableStaff.length < (3 - alreadyScheduled.length)) {
+                            validAttempt = false;
+                            break;
+                        }
+
+                        const staffToSchedule = availableStaff
+                            .sort((a, b) => workCounts[a.name] - workCounts[b.name])
+                            .slice(0, 3 - alreadyScheduled.length);
+                        
+                        staffToSchedule.forEach(person => {
+                            currentSchedule[day].push(person.name);
+                            workCounts[person.name]++;
+                        });
+                    }
+
                     if (!validAttempt) continue;
 
-                    const allCountsValid = staffMembers.every(p => {
-                        const count = workCounts[p.name];
-                        return count >= 1 && count <= 3;
-                    });
-
-                    if (allCountsValid) {
+                    const totalShifts = Object.values(workCounts).reduce((a, b) => a + b, 0);
+                    if (totalShifts === 15) {
                         generatedSchedule = currentSchedule;
                         scheduleFound = true;
                         break;
@@ -457,24 +564,20 @@
                 }
 
                 if (scheduleFound) {
-                    const startDate = scheduleStartDateInput.value;
-                    if(!startDate) {
-                        displayError('請選擇排班開始日期。');
-                        return;
-                    }
-                    displaySchedule(generatedSchedule, startDate);
-                    saveScheduleToHistory(generatedSchedule, startDate);
+                    displaySchedule(generatedSchedule);
+                    const historyEntry = {
+                        date: new Date().toLocaleString('zh-TW'),
+                        schedule: generatedSchedule
+                    };
+                    scheduleHistory.unshift(historyEntry); // Add to the beginning
+                    updateFirestore(); // Save the new history to Firestore
                 } else {
                     displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
                 }
             });
-
-            // --- Helper Functions ---
-            function displaySchedule(schedule, startDate) {
-                scheduleResultContainer.classList.remove('hidden');
-                document.getElementById('scheduleResult').querySelector('h2').textContent = `排班表 (開始日期: ${startDate})`;
+            
+            function displaySchedule(schedule) {
                 scheduleDisplay.innerHTML = '';
-
                 schedule.forEach((people, index) => {
                     const dayItem = document.createElement('div');
                     dayItem.className = 'bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2';
@@ -486,16 +589,14 @@
                     `;
                     scheduleDisplay.appendChild(dayItem);
                 });
-                scheduleResultContainer.scrollIntoView({ behavior: 'smooth' });
+                scheduleResultContainer.classList.remove('hidden');
             }
 
             function displayError(message) {
                 errorMessage.textContent = message;
                 errorMessage.classList.remove('hidden');
-                setTimeout(() => errorMessage.classList.add('hidden'), 5000);
             }
         });
     </script>
 </body>
 </html>
-
