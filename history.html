@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排班歷史紀錄</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .glass-container {
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .history-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .history-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .schedule-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .day-column {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .btn {
+            background-color: rgba(74, 144, 226, 0.5);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background-color: rgba(74, 144, 226, 0.7);
+        }
+
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="glass-container">
+        <div class="flex justify-between items-center w-full">
+            <h1 class="text-4xl font-bold">排班歷史紀錄</h1>
+            <a href="index.html" class="btn">返回主頁</a>
+        </div>
+        
+        <div id="historyList" class="space-y-4">
+            <!-- History items will be rendered here -->
+        </div>
+
+        <div id="loadingMessage" class="text-center text-gray-400">正在連接資料庫並讀取紀錄...</div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const historyListContainer = document.getElementById('historyList');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            // --- Firebase Setup ---
+            //
+            // ========================= 重要設定 =========================
+            // 請將您從 Firebase 專案設定中複製的設定物件貼到下方
+            //
+            // 如何取得? (請參考主頁面 index.html 的說明)
+            // 這個設定物件必須和 index.html 中的完全相同
+            // ==========================================================
+            const firebaseConfig = {
+              // --- ↓↓↓ 請將您在 index.html 中使用的同一份 Firebase 設定貼在這裡 ↓↓↓ ---
+              apiKey: "YOUR_API_KEY",
+              authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+              projectId: "YOUR_PROJECT_ID",
+              storageBucket: "YOUR_PROJECT_ID.appspot.com",
+              messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+              appId: "YOUR_APP_ID"
+              // --- ↑↑↑ 請將您在 index.html 中使用的同一份 Firebase 設定貼在這裡 ↑↑↑ ---
+            };
+
+            const finalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : finalFirebaseConfig.projectId;
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+            if (!finalFirebaseConfig.apiKey || finalFirebaseConfig.apiKey === "YOUR_API_KEY") {
+                loadingMessage.innerHTML = `
+                    <p class="text-red-400 font-bold">Firebase 設定未載入！</p>
+                    <p class="text-sm mt-2">請依照程式碼中的註解，在 history.html 檔案中填入您的 Firebase 設定資訊。</p>
+                `;
+                console.error("Firebase config is not set. Please edit history.html and add your project's firebaseConfig object.");
+                return;
+            }
+
+            const app = initializeApp(finalFirebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                loadingMessage.textContent = '身份驗證失敗，請刷新頁面。';
+                return;
+            }
+
+            // --- Firestore References ---
+            const configDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'scheduling', 'config');
+            const historyCollectionRef = collection(configDocRef, 'history');
+            const historyQuery = query(historyCollectionRef, orderBy('createdAt', 'desc'));
+
+            // --- Real-time Listener for History ---
+            onSnapshot(historyQuery, (querySnapshot) => {
+                loadingMessage.classList.add('hidden');
+                historyListContainer.innerHTML = '';
+                if(querySnapshot.empty){
+                    historyListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有任何歷史紀錄。</p>';
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const history = doc.data();
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    const date = history.createdAt ? history.createdAt.toDate().toLocaleString('zh-TW') : '未知日期';
+
+                    let scheduleHtml = '<div class="schedule-details">';
+                    // The schedule is stored as a map, so we can iterate over its keys
+                    for(const day in history.schedule){
+                        scheduleHtml += `
+                            <div class="day-column">
+                                <h4 class="font-bold text-lg">${day}</h4>
+                                <ul class="list-disc list-inside mt-2">
+                                    ${history.schedule[day].map(person => `<li>${person}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    scheduleHtml += '</div>';
+
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-bold">開始日期：${history.startDate}</h3>
+                            <span class="text-sm text-gray-400">建立於：${date}</span>
+                        </div>
+                        ${scheduleHtml}
+                    `;
+                    historyListContainer.appendChild(historyItem);
+                });
+            }, (error) => {
+                console.error("Error listening to history:", error);
+                loadingMessage.textContent = "無法從資料庫讀取歷史紀錄。";
+            });
+        });
+    </script>
+</body>
+</html>
+
