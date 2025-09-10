@@ -62,13 +62,13 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
-        .input-group, .schedule-availability {
+        .input-group, .schedule-availability, .search-group {
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
             align-items: center;
         }
-
+        
         .schedule-grid {
             display: grid;
             grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -123,10 +123,17 @@
             transition: background-color 0.3s;
             border: none;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn:hover {
             background-color: rgba(74, 144, 226, 0.7);
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
         }
 
         .btn-red {
@@ -136,13 +143,52 @@
         .btn-red:hover {
             background-color: rgba(255, 99, 71, 0.7);
         }
-
-        .history-item {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
+        
+        .schedule-day-item.highlight {
+            border: 2px solid rgba(255, 215, 0, 0.8);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
         }
+
+
+        /* Calendar Styles */
+        #calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        .calendar-day {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 40px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .calendar-day.has-schedule {
+            background-color: rgba(74, 144, 226, 0.3);
+            cursor: pointer;
+            font-weight: bold;
+        }
+         .calendar-day.has-schedule:hover {
+            background-color: rgba(74, 144, 226, 0.5);
+        }
+        .calendar-day.selected {
+            background-color: rgba(74, 144, 226, 0.7);
+            color: white;
+        }
+        .calendar-day.search-highlight::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: rgba(255, 215, 0, 0.9);
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+        }
+
 
         @media (max-width: 640px) {
             body {
@@ -192,9 +238,7 @@
                     </select>
                     <button id="addStaffBtn" class="btn">新增人員</button>
                 </div>
-                <div id="staffList" class="space-y-2">
-                    <!-- Staff members will be rendered here -->
-                </div>
+                <div id="staffList" class="space-y-2"></div>
             </div>
 
             <!-- 空閒狀態設定 -->
@@ -209,24 +253,36 @@
                         <div class="grid-header">星期三</div>
                         <div class="grid-header">星期四</div>
                         <div class="grid-header">星期五</div>
-                        <div id="availabilityGrid" class="contents">
-                            <!-- Availability grid will be rendered here -->
-                        </div>
+                        <div id="availabilityGrid" class="contents"></div>
                     </div>
                 </div>
             </div>
+            
+            <!-- 開始日期 -->
+            <div class="space-y-2">
+                <label for="startDateInput" class="text-lg font-semibold">排班開始日期</label>
+                <input type="date" id="startDateInput" class="w-full p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
 
             <!-- 產生排班表 -->
-            <div class="flex justify-center">
+            <div class="flex justify-center mt-4">
                 <button id="generateBtn" class="btn btn-red">產生排班表</button>
             </div>
 
             <!-- 排班表顯示區 -->
             <div id="scheduleResult" class="space-y-4 hidden">
-                <h2 class="text-2xl font-semibold">排班表</h2>
-                <div id="scheduleDisplay" class="space-y-4">
-                    <!-- Schedule will be displayed here -->
+                 <div class="flex justify-between items-center flex-wrap gap-4">
+                    <h2 class="text-2xl font-semibold">排班表</h2>
+                    <div class="search-group">
+                        <input type="text" id="currentSearchInput" class="p-2 w-48 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="查詢姓名...">
+                        <button id="currentSearchBtn" class="btn btn-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+                <div id="scheduleDisplay" class="space-y-4"></div>
             </div>
 
             <!-- 錯誤訊息 -->
@@ -235,9 +291,26 @@
 
         <!-- 歷史紀錄畫面 -->
         <div id="historyView" class="hidden">
-            <h2 class="text-2xl font-semibold mb-4">歷史排班紀錄</h2>
-            <div id="historyList" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                <!-- History items will be rendered here -->
+            <div class="search-group mb-4">
+                <input type="text" id="historySearchInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名查詢歷史紀錄">
+                <button id="historySearchBtn" class="btn btn-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                    <span class="ml-2">查詢</span>
+                </button>
+            </div>
+            <div id="calendar-container" class="bg-gray-800 bg-opacity-50 p-6 rounded-lg">
+                <div id="calendar-header" class="flex justify-between items-center mb-4">
+                    <button id="prevMonthBtn" class="btn p-2 w-10 h-10">&lt;</button>
+                    <h3 id="monthYearDisplay" class="text-xl font-bold"></h3>
+                    <button id="nextMonthBtn" class="btn p-2 w-10 h-10">&gt;</button>
+                </div>
+                <div id="calendar-weekdays" class="grid grid-cols-7 gap-2 mb-2 text-center text-gray-400 font-bold"></div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-2"></div>
+            </div>
+            <div id="historyScheduleDisplay" class="mt-4 p-4 bg-gray-800 bg-opacity-50 rounded-lg min-h-[100px]">
+                <p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>
             </div>
         </div>
     </div>
@@ -250,6 +323,7 @@
             const addStaffBtn = document.getElementById('addStaffBtn');
             const staffListContainer = document.getElementById('staffList');
             const availabilityGridContainer = document.getElementById('availabilityGrid');
+            const startDateInput = document.getElementById('startDateInput');
             const generateBtn = document.getElementById('generateBtn');
             const scheduleResultContainer = document.getElementById('scheduleResult');
             const scheduleDisplay = document.getElementById('scheduleDisplay');
@@ -258,14 +332,34 @@
             const showHistoryBtn = document.getElementById('showHistoryBtn');
             const schedulerView = document.getElementById('schedulerView');
             const historyView = document.getElementById('historyView');
-            const historyList = document.getElementById('historyList');
+            
+            // Search Elements
+            const currentSearchInput = document.getElementById('currentSearchInput');
+            const currentSearchBtn = document.getElementById('currentSearchBtn');
+            const historySearchInput = document.getElementById('historySearchInput');
+            const historySearchBtn = document.getElementById('historySearchBtn');
 
-            const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+            // Calendar Elements
+            const prevMonthBtn = document.getElementById('prevMonthBtn');
+            const nextMonthBtn = document.getElementById('nextMonthBtn');
+            const monthYearDisplay = document.getElementById('monthYearDisplay');
+            const calendarWeekdays = document.getElementById('calendar-weekdays');
+            const calendarGrid = document.getElementById('calendar-grid');
+            const historyScheduleDisplay = document.getElementById('historyScheduleDisplay');
+            
+            const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
             
             // Data State
             let staffMembers = []; 
             let availability = {};
-            let scheduleHistory = [];
+            let scheduleHistory = {}; // Changed to object for easier date lookup
+            let calendarDate = new Date();
+            let lastGeneratedSchedule = [];
+
+            // --- Utility Functions ---
+            function formatDate(date) {
+                return date.toISOString().split('T')[0];
+            }
 
             // --- Data Persistence ---
             function loadData() {
@@ -275,6 +369,7 @@
                 if (storedStaff) staffMembers = JSON.parse(storedStaff);
                 if (storedAvailability) availability = JSON.parse(storedAvailability);
                 if (storedHistory) scheduleHistory = JSON.parse(storedHistory);
+                startDateInput.value = formatDate(new Date());
                 renderAll();
             }
 
@@ -288,7 +383,7 @@
             function renderAll() {
                 renderStaffList();
                 renderAvailabilityGrid();
-                renderHistoryList();
+                renderCalendar();
             }
 
             function renderStaffList() {
@@ -329,40 +424,54 @@
                         dayCell.className = `grid-cell schedule-cell ${availability[person.name][i] ? 'available' : 'unavailable'}`;
                         dayCell.dataset.day = i;
                         dayCell.dataset.person = person.name;
-                        dayCell.textContent = days[i];
+                        dayCell.textContent = weekdays[i];
                         row.appendChild(dayCell);
                     }
                     availabilityGridContainer.appendChild(row);
                 });
             }
-
-            function renderHistoryList() {
-                historyList.innerHTML = '';
-                if (scheduleHistory.length === 0) {
-                    historyList.innerHTML = '<p class="text-center text-gray-400">目前沒有歷史紀錄。</p>';
-                    return;
-                }
-
-                [...scheduleHistory].reverse().forEach(item => {
-                    const historyItem = document.createElement('div');
-                    historyItem.className = 'history-item';
-                    const scheduleHTML = item.schedule.map((people, index) => `
-                        <div class="mt-2">
-                            <h4 class="font-semibold">${days[index]}</h4>
-                            <ul class="list-disc list-inside text-sm text-gray-300">
-                                ${people.map(p => `<li>${p}</li>`).join('')}
-                            </ul>
-                        </div>
-                    `).join('');
-                    
-                    historyItem.innerHTML = `
-                        <h3 class="text-lg font-bold">儲存時間：${new Date(item.date).toLocaleString()}</h3>
-                        ${scheduleHTML}
-                    `;
-                    historyList.appendChild(historyItem);
+            
+            // --- Calendar Rendering ---
+            function renderCalendar() {
+                calendarGrid.innerHTML = '';
+                calendarWeekdays.innerHTML = '';
+                
+                const year = calendarDate.getFullYear();
+                const month = calendarDate.getMonth();
+                monthYearDisplay.textContent = `${year}年 ${month + 1}月`;
+                
+                ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
+                    const dayEl = document.createElement('div');
+                    dayEl.textContent = day;
+                    calendarWeekdays.appendChild(dayEl);
                 });
+                
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                for (let i = 0; i < firstDayOfMonth; i++) {
+                    calendarGrid.appendChild(document.createElement('div'));
+                }
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.textContent = day;
+                    dayEl.classList.add('calendar-day');
+                    const currentDate = new Date(year, month, day);
+                    const dateStr = formatDate(currentDate);
+                    
+                    if (scheduleHistory[dateStr]) {
+                        dayEl.classList.add('has-schedule');
+                        dayEl.dataset.date = dateStr;
+                    }
+                    calendarGrid.appendChild(dayEl);
+                }
+                // Re-apply search highlight if a search is active
+                if(historySearchInput.value.trim()){
+                    highlightCalendarFromSearch();
+                }
             }
-
+            
             // --- Event Listeners ---
             addStaffBtn.addEventListener('click', () => {
                 const name = staffNameInput.value.trim();
@@ -411,13 +520,101 @@
                 historyView.classList.remove('hidden');
                 showSchedulerBtn.classList.remove('active');
                 showHistoryBtn.classList.add('active');
-                renderHistoryList(); // Ensure it's up to date
+                renderCalendar();
             });
+            
+            // Calendar Navigation
+            prevMonthBtn.addEventListener('click', () => {
+                calendarDate.setMonth(calendarDate.getMonth() - 1);
+                renderCalendar();
+            });
+            
+            nextMonthBtn.addEventListener('click', () => {
+                calendarDate.setMonth(calendarDate.getMonth() + 1);
+                renderCalendar();
+            });
+            
+            calendarGrid.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.classList.contains('has-schedule')) {
+                    const dateStr = target.dataset.date;
+                    const people = scheduleHistory[dateStr];
+                    
+                    historyScheduleDisplay.innerHTML = `
+                        <h3 class="text-xl font-bold mb-2">${dateStr} 排班人員</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            ${people.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    `;
+                    
+                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                    target.classList.add('selected');
+                }
+            });
+
+            // --- Search Logic ---
+            currentSearchBtn.addEventListener('click', () => {
+                const searchTerm = currentSearchInput.value.trim().toLowerCase();
+                document.querySelectorAll('#scheduleDisplay .schedule-day-item').forEach(item => {
+                    item.classList.remove('highlight');
+                    if (searchTerm) {
+                        const names = Array.from(item.querySelectorAll('li')).map(li => li.textContent.trim().toLowerCase());
+                        if (names.some(name => name.includes(searchTerm))) {
+                            item.classList.add('highlight');
+                        }
+                    }
+                });
+            });
+
+            function highlightCalendarFromSearch() {
+                const searchTerm = historySearchInput.value.trim().toLowerCase();
+                if (!searchTerm) return;
+                
+                const foundDates = Object.keys(scheduleHistory).filter(date => 
+                    scheduleHistory[date].some(name => name.toLowerCase().includes(searchTerm))
+                );
+
+                document.querySelectorAll('.calendar-day').forEach(dayEl => {
+                    dayEl.classList.remove('search-highlight');
+                    if (foundDates.includes(dayEl.dataset.date)) {
+                        dayEl.classList.add('search-highlight');
+                    }
+                });
+                return foundDates;
+            }
+
+            historySearchBtn.addEventListener('click', () => {
+                const searchTerm = historySearchInput.value.trim();
+                document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('search-highlight'));
+
+                if (!searchTerm) {
+                    historyScheduleDisplay.innerHTML = '<p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>';
+                    return;
+                }
+                
+                const foundDates = highlightCalendarFromSearch();
+
+                if (foundDates.length > 0) {
+                     historyScheduleDisplay.innerHTML = `
+                        <h3 class="text-xl font-bold mb-2">找到 ${searchTerm} 在以下 ${foundDates.length} 天有排班：</h3>
+                        <ul class="list-disc list-inside space-y-1 max-h-40 overflow-y-auto">
+                            ${foundDates.sort().map(d => `<li>${d}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                     historyScheduleDisplay.innerHTML = `<p class="text-center text-gray-400">在歷史紀錄中找不到 ${searchTerm} 的排班。</p>`;
+                }
+            });
+
 
             // --- Schedule Generation Logic ---
             generateBtn.addEventListener('click', () => {
                 if (staffMembers.length < 3) {
                     displayError('人員太少，無法排班 (需要至少3人)');
+                    return;
+                }
+                if (!startDateInput.value) {
+                    displayError('請選擇排班開始日期');
                     return;
                 }
                 
@@ -435,30 +632,18 @@
                     staffMembers.forEach(p => workCounts[p.name] = 0);
                     let validAttempt = true;
 
-                    // Step 1: Schedule cadres first
                     for (let day = 0; day < 5; day++) {
                         const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name][day]);
-                        if (availableCadres.length === 0) {
-                            validAttempt = false;
-                            break;
-                        }
+                        if (availableCadres.length === 0) { validAttempt = false; break; }
                         const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
                         currentSchedule[day].push(cadreToSchedule.name);
                         workCounts[cadreToSchedule.name]++;
                     }
                     if (!validAttempt) continue;
 
-                    // Step 2: Fill remaining 2 spots
                     for (let day = 0; day < 5; day++) {
-                        const availableOthers = staffMembers.filter(p => 
-                            !currentSchedule[day].includes(p.name) && availability[p.name][day]
-                        );
-                        
-                        if (availableOthers.length < 2) {
-                            validAttempt = false;
-                            break;
-                        }
-
+                        const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name][day]);
+                        if (availableOthers.length < 2) { validAttempt = false; break; }
                         const sortedAvailable = availableOthers.sort((a, b) => workCounts[a.name] - workCounts[b.name]);
                         currentSchedule[day].push(sortedAvailable[0].name);
                         workCounts[sortedAvailable[0].name]++;
@@ -467,11 +652,7 @@
                     }
                     if (!validAttempt) continue;
                     
-                    // Final Check: Ensure everyone has 1 or 2 shifts
-                    const allCountsValid = staffMembers.every(p => {
-                        const count = workCounts[p.name];
-                        return count >= 1 && count <= 2;
-                    });
+                    const allCountsValid = staffMembers.every(p => { const count = workCounts[p.name]; return count >= 1 && count <= 2; });
 
                     if (allCountsValid) {
                         generatedSchedule = currentSchedule;
@@ -481,25 +662,37 @@
                 }
 
                 if (scheduleFound) {
-                    displaySchedule(generatedSchedule);
-                    // Save to history
-                    scheduleHistory.push({
-                        date: new Date().toISOString(),
-                        schedule: generatedSchedule
+                    lastGeneratedSchedule = generatedSchedule; // Store for current search
+                    const scheduleDates = [];
+                    const baseDate = new Date(startDateInput.value + 'T00:00:00');
+                    for(let i=0; i<5; i++){
+                        const currentDate = new Date(baseDate);
+                        currentDate.setDate(baseDate.getDate() + i);
+                        scheduleDates.push(currentDate);
+                    }
+                    
+                    displaySchedule(generatedSchedule, scheduleDates);
+
+                    generatedSchedule.forEach((people, index) => {
+                        const dateStr = formatDate(scheduleDates[index]);
+                        scheduleHistory[dateStr] = people;
                     });
                     saveData();
+                    renderCalendar();
                 } else {
                     displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
                 }
             });
 
-            function displaySchedule(schedule) {
+            function displaySchedule(schedule, dates) {
                 scheduleDisplay.innerHTML = '';
                 schedule.forEach((people, index) => {
                     const dayItem = document.createElement('div');
-                    dayItem.className = 'bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2';
+                    // Add a specific class for easier selection
+                    dayItem.className = 'schedule-day-item bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2 transition-all duration-300';
+                    const dateStr = dates[index].toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     dayItem.innerHTML = `
-                        <h3 class="text-xl font-bold">${days[index]}</h3>
+                        <h3 class="text-xl font-bold">${dateStr}</h3>
                         <ul class="list-disc list-inside space-y-1">
                             ${people.map(p => `<li>${p}</li>`).join('')}
                         </ul>
@@ -520,3 +713,4 @@
     </script>
 </body>
 </html>
+
