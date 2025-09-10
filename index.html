@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排班系統 (最終版)</title>
+    <title>雲端同步排班系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -12,7 +12,7 @@
             color: #e2e8f0;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center; /* 改為 center */
             min-height: 100vh;
             padding: 40px 20px;
         }
@@ -23,365 +23,452 @@
             border-radius: 20px;
             padding: 2.5rem;
             width: 100%;
-            max-width: 900px; /* 調整回原始寬度 */
+            max-width: 900px;
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 2.5rem;
         }
-        .input-group {
-            display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;
-        }
-        /* 簡化回每日排班的 Grid 樣式 */
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: 120px repeat(5, 1fr); 
-            gap: 0.5rem;
-            width: 100%;
-        }
-        .availability-wrapper {
-             overflow-x: auto;
-             padding-bottom: 1rem;
-        }
-        .grid-header, .grid-cell {
-            padding: 0.75rem; text-align: center; border-radius: 0.5rem;
-            background-color: rgba(255, 255, 255, 0.05); font-size: 0.875rem;
-        }
-        .grid-header {
-            font-weight: bold; background-color: rgba(255, 255, 255, 0.1);
-        }
-        .schedule-cell {
-            min-height: 40px; cursor: pointer; transition: background-color 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .input-group { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .schedule-grid { display: grid; grid-template-columns: 120px repeat(5, 1fr); gap: 0.5rem; width: 100%; }
+        .availability-wrapper { overflow-x: auto; padding-bottom: 1rem; }
+        .grid-header, .grid-cell { padding: 0.75rem; text-align: center; border-radius: 0.5rem; background-color: rgba(255, 255, 255, 0.05); font-size: 0.875rem; }
+        .grid-header { font-weight: bold; background-color: rgba(255, 255, 255, 0.1); }
+        .schedule-cell { min-height: 40px; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; }
         .schedule-cell.available { background-color: rgba(74, 222, 128, 0.4); }
         .schedule-cell.available:hover { background-color: rgba(74, 222, 128, 0.6); }
         .schedule-cell.unavailable { background-color: rgba(248, 113, 113, 0.3); }
         .schedule-cell.unavailable:hover { background-color: rgba(248, 113, 113, 0.5); }
-
-        .person-item {
-            display: flex; justify-content: space-between; align-items: center;
-            background-color: rgba(255, 255, 255, 0.05);
-            padding: 0.5rem 1rem; border-radius: 0.5rem;
-        }
-        .btn {
-            background-color: rgba(74, 144, 226, 0.5); color: white;
-            padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: bold;
-            transition: all 0.3s; border: none; cursor: pointer;
-        }
+        .person-item { display: flex; justify-content: space-between; align-items: center; background-color: rgba(255, 255, 255, 0.05); padding: 0.5rem 1rem; border-radius: 0.5rem; }
+        .btn { background-color: rgba(74, 144, 226, 0.5); color: white; padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: bold; transition: all 0.3s; border: none; cursor: pointer; }
         .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
         .btn:disabled { background-color: rgba(107, 114, 128, 0.3); color: rgba(255,255,255,0.5); cursor: not-allowed; }
-
         .btn-red { background-color: rgba(255, 99, 71, 0.6); }
         .btn-red:hover:not(:disabled) { background-color: rgba(255, 99, 71, 0.8); }
-        
-        .history-item {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-left: 4px solid rgba(74, 144, 226, 0.5);
-            padding: 1rem; border-radius: 0.5rem;
-        }
+        .history-item { background-color: rgba(255, 255, 255, 0.05); border-left: 4px solid rgba(74, 144, 226, 0.5); padding: 1rem; border-radius: 0.5rem; }
+        .auth-form { display: flex; flex-direction: column; gap: 1rem; }
+        .auth-input { background-color: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 0.5rem; }
+        .auth-toggle-link { color: #60a5fa; cursor: pointer; text-decoration: underline; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
 
     <div class="glass-container">
-
-        <!-- 主排班系統畫面 -->
-        <div id="main-view">
-            <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
-                 <h1 class="text-4xl font-bold text-center">排班系統</h1>
-                 <button id="viewHistoryBtn" class="btn text-sm p-2 px-4">查看歷史紀錄</button>
+        <!-- 讀取中畫面 -->
+        <div id="loading-view" class="text-center">讀取中...</div>
+        
+        <!-- 登入/註冊畫面 -->
+        <div id="auth-view" class="hidden">
+            <div id="login-form">
+                <h1 class="text-3xl font-bold text-center mb-6">登入排班系統</h1>
+                <form id="login" class="auth-form">
+                    <input type="email" id="login-email" placeholder="電子郵件" class="auth-input" required>
+                    <input type="password" id="login-password" placeholder="密碼" class="auth-input" required>
+                    <button type="submit" class="btn">登入</button>
+                </form>
+                <p class="text-center mt-4 text-sm">還沒有帳號嗎？ <span id="show-register-form" class="auth-toggle-link">點此註冊</span></p>
             </div>
-
-            <!-- 人員名單管理 -->
-            <div class="space-y-4">
-                <h2 class="text-2xl font-semibold">1. 人員管理</h2>
-                <div class="input-group">
-                    <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
-                    <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="member">成員</option>
-                        <option value="cadre">幹部</option>
-                    </select>
-                    <button id="addStaffBtn" class="btn">新增人員</button>
-                </div>
-                <div id="staffList" class="space-y-2"></div>
+            <div id="register-form" class="hidden">
+                <h1 class="text-3xl font-bold text-center mb-6">註冊新帳號</h1>
+                <form id="register" class="auth-form">
+                    <input type="email" id="register-email" placeholder="電子郵件" class="auth-input" required>
+                    <input type="password" id="register-password" placeholder="密碼 (至少6位數)" class="auth-input" required>
+                    <button type="submit" class="btn">註冊</button>
+                </form>
+                <p class="text-center mt-4 text-sm">已經有帳號了？ <span id="show-login-form" class="auth-toggle-link">返回登入</span></p>
             </div>
-
-            <!-- 空閒狀態設定 -->
-            <div class="space-y-4 mt-8">
-                <h2 class="text-2xl font-semibold">2. 設定每日空閒狀態</h2>
-                <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
-                <div id="availabilityContainer" class="availability-wrapper"></div>
-            </div>
-
-            <!-- 產生排班表 -->
-            <div class="space-y-4 mt-8">
-                <h2 class="text-2xl font-semibold">3. 產生排班表</h2>
-                 <div class="flex justify-center">
-                    <button id="generateBtn" class="btn btn-red">產生排班表 (並自動儲存)</button>
-                </div>
-            </div>
-
-            <!-- 排班表顯示區 -->
-            <div id="scheduleResult" class="space-y-4 hidden mt-8">
-                <h2 class="text-2xl font-semibold">最新排班結果</h2>
-                <div id="scheduleDisplay" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4"></div>
-            </div>
-             <!-- 錯誤訊息 -->
-            <div id="errorMessage" class="text-red-400 text-center font-bold hidden py-2"></div>
         </div>
 
-        <!-- 歷史紀錄畫面 -->
-        <div id="history-view" class="hidden w-full">
-            <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
-                 <h1 class="text-4xl font-bold">歷史排班紀錄</h1>
-                 <button id="backToMainBtn" class="btn text-sm p-2 px-4">返回排班系統</button>
+        <!-- 主應用程式畫面 -->
+        <div id="app-container" class="hidden">
+             <!-- 主排班系統畫面 -->
+            <div id="main-view">
+                <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+                    <div>
+                        <h1 class="text-4xl font-bold text-center">排班系統</h1>
+                        <p id="user-status" class="text-xs text-gray-400 mt-1"></p>
+                    </div>
+                    <div>
+                        <button id="viewHistoryBtn" class="btn text-sm p-2 px-4 mr-2">歷史紀錄</button>
+                        <button id="logoutBtn" class="btn-red text-sm p-2 px-4">登出</button>
+                    </div>
+                </div>
+                 <!-- ... (主排班系統的 HTML 結構) ... -->
+                 <div class="space-y-4">
+                    <h2 class="text-2xl font-semibold">1. 人員管理</h2>
+                    <div class="input-group">
+                        <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
+                        <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="member">成員</option>
+                            <option value="cadre">幹部</option>
+                        </select>
+                        <button id="addStaffBtn" class="btn">新增人員</button>
+                    </div>
+                    <div id="staffList" class="space-y-2"></div>
+                </div>
+                <div class="space-y-4 mt-8">
+                    <h2 class="text-2xl font-semibold">2. 設定每日空閒狀態</h2>
+                    <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
+                    <div id="availabilityContainer" class="availability-wrapper"></div>
+                </div>
+                <div class="space-y-4 mt-8">
+                    <h2 class="text-2xl font-semibold">3. 產生排班表</h2>
+                    <div class="flex justify-center">
+                        <button id="generateBtn" class="btn btn-red">產生排班表 (並自動儲存)</button>
+                    </div>
+                </div>
+                <div id="scheduleResult" class="space-y-4 hidden mt-8">
+                    <h2 class="text-2xl font-semibold">最新排班結果</h2>
+                    <div id="scheduleDisplay" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4"></div>
+                </div>
             </div>
-            <div class="flex justify-end mb-4">
-                 <button id="clearHistoryBtn" class="btn-red text-sm p-2 px-4">清空所有紀錄</button>
+
+            <!-- 歷史紀錄畫面 -->
+            <div id="history-view" class="hidden w-full">
+                <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+                    <h1 class="text-4xl font-bold">歷史排班紀錄</h1>
+                    <button id="backToMainBtn" class="btn text-sm p-2 px-4">返回排班系統</button>
+                </div>
+                <div class="flex justify-end mb-4">
+                    <button id="clearHistoryBtn" class="btn-red text-sm p-2 px-4">清空所有紀錄</button>
+                </div>
+                <div id="historyList" class="space-y-3"></div>
             </div>
-            <div id="historyList" class="space-y-3"></div>
         </div>
+
+        <!-- 錯誤訊息提示框 -->
+        <div id="error-message-box" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg hidden animate-pulse"></div>
     </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- 元素選擇器 ---
-    const mainView = document.getElementById('main-view');
-    const historyView = document.getElementById('history-view');
-    const viewHistoryBtn = document.getElementById('viewHistoryBtn');
-    const backToMainBtn = document.getElementById('backToMainBtn');
-    
-    const staffNameInput = document.getElementById('staffNameInput');
-    const staffCategorySelect = document.getElementById('staffCategorySelect');
-    const addStaffBtn = document.getElementById('addStaffBtn');
-    const staffListContainer = document.getElementById('staffList');
-    const availabilityContainer = document.getElementById('availabilityContainer');
-    const generateBtn = document.getElementById('generateBtn');
-    const scheduleResultContainer = document.getElementById('scheduleResult');
-    const scheduleDisplay = document.getElementById('scheduleDisplay');
-    const errorMessage = document.getElementById('errorMessage');
-    const historyList = document.getElementById('historyList');
-    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-    
-    // --- 資料結構 (簡化) ---
-    const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
-    
-    let staffMembers = [];
-    let availability = {};
-    let scheduleHistory = [];
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // --- 資料處理 ---
-    function loadData() {
-        staffMembers = JSON.parse(localStorage.getItem('staffMembers')) || [];
-        availability = JSON.parse(localStorage.getItem('availability')) || {};
-        scheduleHistory = JSON.parse(localStorage.getItem('scheduleHistory')) || [];
-        renderAll();
-    }
+        // ===================================================================================
+        // == 重要！請將此處替換為您自己的 Firebase 專案設定 ==
+        // == 1. 前往 Firebase 控制台 (console.firebase.google.com)
+        // == 2. 進入您的專案，點擊左上角齒輪 -> 專案設定
+        // == 3. 在「一般」分頁下方，複製您的 firebaseConfig 物件並貼到此處
+        // ===================================================================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // ===================================================================================
 
-    function saveData() {
-        localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
-        localStorage.setItem('availability', JSON.stringify(availability));
-        localStorage.setItem('scheduleHistory', JSON.stringify(scheduleHistory));
-    }
-    
-    function renderAll() {
-        renderStaffList();
-        renderAvailabilityGrid();
-        renderHistoryList();
-    }
+        // --- 初始化 Firebase ---
+        /* 修正：暫時移除啟動檢查，讓 UI 可以載入。
+            但您仍然需要填寫上面的 firebaseConfig 才能讓功能正常運作！
+        */
+        // if (firebaseConfig.apiKey.startsWith("YOUR_")) {
+        //     document.body.innerHTML = `
+        //         <div class="glass-container text-center">
+        //             <h1 class="text-3xl font-bold text-red-400 mb-4">設定錯誤：Firebase 未設定</h1>
+        //             <p class="mb-2">您尚未在程式碼中設定您的 Firebase 專案金鑰。</p>
+        //             <p>請打開 <code>index.html</code> 檔案，找到 <code>firebaseConfig</code> 物件，並用您自己的 Firebase 專案設定取代預設值。</p>
+        //         </div>
+        //     `;
+        //     throw new Error("Firebase config is not set. Please update it in your code.");
+        // }
 
-    // --- 渲染畫面函式 ---
-    function renderStaffList() {
-        staffListContainer.innerHTML = '';
-        if (staffMembers.length === 0) {
-            staffListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有人員。</p>';
-        } else {
-            staffMembers.forEach(person => {
-                const categoryText = person.category === 'cadre' ? '幹部' : '成員';
-                const personItem = document.createElement('div');
-                personItem.className = 'person-item';
-                personItem.innerHTML = `
-                    <span>${person.name} (${categoryText})</span>
-                    <button class="btn-red p-2 rounded-full w-8 h-8 flex items-center justify-center text-sm" data-name="${person.name}">&times;</button>
-                `;
-                staffListContainer.appendChild(personItem);
-            });
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- 全域變數和常數 ---
+        const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+        const scheduleDocRef = doc(db, "schedules", "mainSchedule"); // 統一的資料文件路徑
+        let staffMembers = [];
+        let availability = {};
+        let scheduleHistory = [];
+        let unsubscribe; // 用來取消即時監聽
+
+        // --- 元素選擇器 ---
+        const loadingView = document.getElementById('loading-view');
+        const authView = document.getElementById('auth-view');
+        const appContainer = document.getElementById('app-container');
+        // ... (其他元素選擇器)
+        const mainView = document.getElementById('main-view');
+        const historyView = document.getElementById('history-view');
+        const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+        const backToMainBtn = document.getElementById('backToMainBtn');
+        const staffNameInput = document.getElementById('staffNameInput');
+        const staffCategorySelect = document.getElementById('staffCategorySelect');
+        const addStaffBtn = document.getElementById('addStaffBtn');
+        const staffListContainer = document.getElementById('staffList');
+        const availabilityContainer = document.getElementById('availabilityContainer');
+        const generateBtn = document.getElementById('generateBtn');
+        const scheduleResultContainer = document.getElementById('scheduleResult');
+        const scheduleDisplay = document.getElementById('scheduleDisplay');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const userStatus = document.getElementById('user-status');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const errorMessageBox = document.getElementById('error-message-box');
+        
+        // --- 頁面切換邏輯 ---
+        function showView(viewToShow) {
+            loadingView.classList.add('hidden');
+            authView.classList.add('hidden');
+            appContainer.classList.add('hidden');
+            viewToShow.classList.remove('hidden');
         }
-    }
 
-    function renderAvailabilityGrid() {
-        availabilityContainer.innerHTML = '';
-        if (staffMembers.length === 0) return;
-
-        const grid = document.createElement('div');
-        grid.className = 'schedule-grid';
-
-        let headerHTML = `<div class="grid-header">姓名</div>`;
-        days.forEach(day => headerHTML += `<div class="grid-header">${day}</div>`);
-        grid.innerHTML = headerHTML;
-
-        staffMembers.forEach(person => {
-            if (!availability[person.name]) {
-                availability[person.name] = Array(days.length).fill(true);
+        // --- 驗證 (Authentication) 邏輯 ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // 使用者已登入
+                userStatus.textContent = `登入身分: ${user.email}`;
+                showView(appContainer);
+                showMainView(); // 預設顯示主畫面
+                if (unsubscribe) unsubscribe(); // 取消舊的監聽
+                unsubscribe = listenToScheduleData(); // 啟動即時資料監聽
+            } else {
+                // 使用者已登出
+                showView(authView);
+                if (unsubscribe) unsubscribe(); // 取消監聽
             }
-            let rowHTML = `<div class="grid-cell font-bold">${person.name}</div>`;
-            for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-                const isAvailable = availability[person.name][dayIndex];
-                rowHTML += `<div class="schedule-cell ${isAvailable ? 'available' : 'unavailable'}" data-person="${person.name}" data-day="${dayIndex}"></div>`;
-            }
-            grid.innerHTML += rowHTML;
         });
-        availabilityContainer.appendChild(grid);
-    }
-    
-    function renderHistoryList() {
-        historyList.innerHTML = '';
-        if (scheduleHistory.length === 0) {
-            historyList.innerHTML = '<p class="text-center text-gray-400">沒有歷史紀錄。</p>';
-        } else {
-            [...scheduleHistory].reverse().forEach(record => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                const date = new Date(record.timestamp).toLocaleString('zh-TW');
-                let scheduleHTML = '<dl class="space-y-2">';
-                days.forEach((day, dayIndex) => {
-                    const people = record.schedule[dayIndex].join('、') || '無人';
-                    scheduleHTML += `<div><dt class="font-bold">${day}</dt><dd class="pl-4 text-sm">${people}</dd></div>`;
-                });
-                scheduleHTML += '</dl>';
-                item.innerHTML = `<h3 class="font-bold text-lg">儲存時間: ${date}</h3>${scheduleHTML}`;
-                historyList.appendChild(item);
+
+        // 登入、註冊表單切換
+        document.getElementById('show-register-form').addEventListener('click', () => {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        });
+        document.getElementById('show-login-form').addEventListener('click', () => {
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+        });
+        
+        // 註冊
+        document.getElementById('register').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            createUserWithEmailAndPassword(auth, email, password).catch(err => displayError(err.message));
+        });
+
+        // 登入
+        document.getElementById('login').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            signInWithEmailAndPassword(auth, email, password).catch(err => displayError(err.message));
+        });
+        
+        // 登出
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+
+        // --- Firestore 即時資料庫邏輯 ---
+        function listenToScheduleData() {
+            return onSnapshot(scheduleDocRef, (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data();
+                    staffMembers = data.staffMembers || [];
+                    availability = data.availability || {};
+                    scheduleHistory = data.scheduleHistory || [];
+                } else {
+                    // 如果文件不存在，用空資料初始化
+                    updateScheduleData();
+                }
+                renderAll();
             });
-        }
-    }
-
-    // --- 核心功能函式 ---
-    function addStaff() {
-        const name = staffNameInput.value.trim();
-        const category = staffCategorySelect.value;
-        if (name && !staffMembers.some(p => p.name === name)) {
-            staffMembers.push({ name, category });
-            staffNameInput.value = '';
-            renderAll();
-            saveData();
-        } else if (name) {
-            displayError('此姓名已存在！');
-        }
-    }
-
-    function removeStaff(e) {
-        if (e.target && e.target.dataset.name) {
-            const nameToRemove = e.target.dataset.name;
-            staffMembers = staffMembers.filter(p => p.name !== nameToRemove);
-            delete availability[nameToRemove];
-            renderAll();
-            saveData();
-        }
-    }
-
-    function toggleAvailability(e) {
-        const { person, day } = e.target.dataset;
-        if (person && day) {
-            const dayIndex = parseInt(day);
-            availability[person][dayIndex] = !availability[person][dayIndex];
-            e.target.classList.toggle('available');
-            e.target.classList.toggle('unavailable');
-            saveData();
-        }
-    }
-
-    function generateSchedule() {
-        if (staffMembers.length < 3) { // 至少需要3人才能排班
-            displayError('人員太少，無法排班 (至少需要3人)');
-            return;
-        }
-
-        const PEOPLE_PER_DAY = 3; // 設定每天需要的人數
-        let schedule = Array(days.length).fill(null).map(() => []);
-        let workCounts = Object.fromEntries(staffMembers.map(p => [p.name, 0]));
-        let errors = [];
-
-        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-            const availableStaff = staffMembers
-                .filter(p => availability[p.name]?.[dayIndex])
-                .sort((a, b) => workCounts[a.name] - workCounts[b.name]);
-
-            if (availableStaff.length < PEOPLE_PER_DAY) {
-                errors.push(`${days[dayIndex]}`);
-            }
-            
-            const peopleForDay = availableStaff.slice(0, PEOPLE_PER_DAY);
-            schedule[dayIndex] = peopleForDay.map(p => p.name);
-            peopleForDay.forEach(p => workCounts[p.name]++);
         }
         
-        displaySchedule(schedule);
-        saveToHistory(schedule); // 自動儲存
-
-        if (errors.length > 0) {
-            displayError(`注意：${errors.join('、')} 人力不足，無法排滿${PEOPLE_PER_DAY}人。`);
-        } else {
-            errorMessage.classList.add('hidden');
+        async function updateScheduleData() {
+            const dataToSave = { staffMembers, availability, scheduleHistory };
+            try {
+                await setDoc(scheduleDocRef, dataToSave);
+            } catch (error) {
+                displayError("資料儲存失敗: " + error.message);
+            }
         }
-    }
-
-    function displaySchedule(schedule) {
-        scheduleResultContainer.classList.remove('hidden');
-        scheduleDisplay.innerHTML = '';
-        schedule.forEach((daySchedule, dayIndex) => {
-            const dayItem = document.createElement('div');
-            dayItem.className = 'bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2';
-            const peopleText = daySchedule.length > 0 ? daySchedule.join('、') : '本日無人';
-            dayItem.innerHTML = `<h3 class="text-xl font-bold">${days[dayIndex]}</h3><p>${peopleText}</p>`;
-            scheduleDisplay.appendChild(dayItem);
-        });
-    }
-
-    function saveToHistory(schedule) {
-        if (schedule) {
-            scheduleHistory.push({ timestamp: Date.now(), schedule });
-            saveData();
-            renderHistoryList(); // 更新歷史紀錄列表(即使在背景)
+        
+        // --- 渲染畫面函式 ---
+        function renderAll() {
+            renderStaffList();
+            renderAvailabilityGrid();
+            renderHistoryList();
         }
-    }
 
-    function clearHistory() {
-        scheduleHistory = [];
-        saveData();
-        renderHistoryList();
-    }
+        function renderStaffList() {
+             staffListContainer.innerHTML = '';
+            if (staffMembers.length === 0) {
+                staffListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有人員。</p>';
+            } else {
+                staffMembers.forEach(person => {
+                    const categoryText = person.category === 'cadre' ? '幹部' : '成員';
+                    const personItem = document.createElement('div');
+                    personItem.className = 'person-item';
+                    personItem.innerHTML = `
+                        <span>${person.name} (${categoryText})</span>
+                        <button class="btn-red p-2 rounded-full w-8 h-8 flex items-center justify-center text-sm" data-name="${person.name}">&times;</button>
+                    `;
+                    staffListContainer.appendChild(personItem);
+                });
+            }
+        }
 
-    function displayError(message) {
-        errorMessage.textContent = message;
-        errorMessage.classList.remove('hidden');
-    }
-    
-    // --- 頁面切換邏輯 ---
-    function showMainView() {
-        mainView.classList.remove('hidden');
-        historyView.classList.add('hidden');
-    }
+        function renderAvailabilityGrid() {
+            availabilityContainer.innerHTML = '';
+            if (staffMembers.length === 0) return;
+            const grid = document.createElement('div');
+            grid.className = 'schedule-grid';
+            let headerHTML = `<div class="grid-header">姓名</div>`;
+            days.forEach(day => headerHTML += `<div class="grid-header">${day}</div>`);
+            grid.innerHTML = headerHTML;
+            staffMembers.forEach(person => {
+                if (!availability[person.name]) {
+                    availability[person.name] = Array(days.length).fill(true);
+                }
+                let rowHTML = `<div class="grid-cell font-bold">${person.name}</div>`;
+                for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+                    const isAvailable = availability[person.name][dayIndex];
+                    rowHTML += `<div class="schedule-cell ${isAvailable ? 'available' : 'unavailable'}" data-person="${person.name}" data-day="${dayIndex}"></div>`;
+                }
+                grid.innerHTML += rowHTML;
+            });
+            availabilityContainer.appendChild(grid);
+        }
 
-    function showHistoryView() {
-        mainView.classList.add('hidden');
-        historyView.classList.remove('hidden');
-    }
+        function renderHistoryList() {
+            historyList.innerHTML = '';
+            if (scheduleHistory.length === 0) {
+                historyList.innerHTML = '<p class="text-center text-gray-400">沒有歷史紀錄。</p>';
+            } else {
+                [...scheduleHistory].reverse().forEach(record => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    const date = new Date(record.timestamp).toLocaleString('zh-TW');
+                    let scheduleHTML = '<dl class="space-y-2">';
+                    days.forEach((day, dayIndex) => {
+                        const people = record.schedule[dayIndex].join('、') || '無人';
+                        scheduleHTML += `<div><dt class="font-bold">${day}</dt><dd class="pl-4 text-sm">${people}</dd></div>`;
+                    });
+                    scheduleHTML += '</dl>';
+                    item.innerHTML = `<h3 class="font-bold text-lg">儲存時間: ${date}</h3>${scheduleHTML}`;
+                    historyList.appendChild(item);
+                });
+            }
+        }
 
-    // --- 事件監聽器 ---
-    addStaffBtn.addEventListener('click', addStaff);
-    staffListContainer.addEventListener('click', removeStaff);
-    availabilityContainer.addEventListener('click', toggleAvailability);
-    generateBtn.addEventListener('click', generateSchedule);
-    clearHistoryBtn.addEventListener('click', clearHistory);
-    viewHistoryBtn.addEventListener('click', showHistoryView);
-    backToMainBtn.addEventListener('click', showMainView);
+        // --- 核心功能函式 ---
+        function addStaff() {
+            const name = staffNameInput.value.trim();
+            const category = staffCategorySelect.value;
+            if (name && !staffMembers.some(p => p.name === name)) {
+                staffMembers.push({ name, category });
+                staffNameInput.value = '';
+                updateScheduleData(); // 直接更新雲端
+            } else if (name) {
+                displayError('此姓名已存在！');
+            }
+        }
 
-    // --- 初始載入 ---
-    loadData();
-});
-</script>
+        function removeStaff(e) {
+            if (e.target && e.target.dataset.name) {
+                const nameToRemove = e.target.dataset.name;
+                staffMembers = staffMembers.filter(p => p.name !== nameToRemove);
+                delete availability[nameToRemove];
+                updateScheduleData();
+            }
+        }
+        
+        function toggleAvailability(e) {
+            const { person, day } = e.target.dataset;
+            if (person && day) {
+                const dayIndex = parseInt(day);
+                availability[person][dayIndex] = !availability[person][dayIndex];
+                updateScheduleData();
+            }
+        }
+
+        function generateSchedule() {
+            if (staffMembers.length < 3) {
+                displayError('人員太少，無法排班 (至少需要3人)');
+                return;
+            }
+            const PEOPLE_PER_DAY = 3;
+            let schedule = Array(days.length).fill(null).map(() => []);
+            let workCounts = Object.fromEntries(staffMembers.map(p => [p.name, 0]));
+            let errors = [];
+
+            for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+                const availableStaff = staffMembers
+                    .filter(p => availability[p.name]?.[dayIndex])
+                    .sort((a, b) => workCounts[a.name] - workCounts[b.name]);
+
+                if (availableStaff.length < PEOPLE_PER_DAY) {
+                    errors.push(`${days[dayIndex]}`);
+                }
+                const peopleForDay = availableStaff.slice(0, PEOPLE_PER_DAY);
+                schedule[dayIndex] = peopleForDay.map(p => p.name);
+                peopleForDay.forEach(p => workCounts[p.name]++);
+            }
+            
+            displaySchedule(schedule);
+            saveToHistory(schedule); // 自動儲存
+
+            if (errors.length > 0) {
+                displayError(`注意：${errors.join('、')} 人力不足，無法排滿${PEOPLE_PER_DAY}人。`);
+            }
+        }
+
+        function displaySchedule(schedule) {
+            scheduleResultContainer.classList.remove('hidden');
+            scheduleDisplay.innerHTML = '';
+            schedule.forEach((daySchedule, dayIndex) => {
+                const dayItem = document.createElement('div');
+                dayItem.className = 'bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2';
+                const peopleText = daySchedule.length > 0 ? daySchedule.join('、') : '本日無人';
+                dayItem.innerHTML = `<h3 class="text-xl font-bold">${days[dayIndex]}</h3><p>${peopleText}</p>`;
+                scheduleDisplay.appendChild(dayItem);
+            });
+        }
+
+        function saveToHistory(schedule) {
+            if (schedule) {
+                scheduleHistory.push({ timestamp: Date.now(), schedule });
+                updateScheduleData();
+            }
+        }
+        
+        function clearHistory() {
+             if (confirm('確定要清空所有歷史紀錄嗎？此操作無法復原。')) {
+                scheduleHistory = [];
+                updateScheduleData();
+            }
+        }
+
+        function displayError(message) {
+            errorMessageBox.textContent = message;
+            errorMessageBox.classList.remove('hidden');
+            setTimeout(() => errorMessageBox.classList.add('hidden'), 3000);
+        }
+        
+        // --- 頁面切換 ---
+        function showMainView() {
+            mainView.classList.remove('hidden');
+            historyView.classList.add('hidden');
+        }
+        function showHistoryView() {
+            mainView.classList.add('hidden');
+            historyView.classList.remove('hidden');
+        }
+        
+        // --- 事件監聽器 ---
+        addStaffBtn.addEventListener('click', addStaff);
+        staffListContainer.addEventListener('click', removeStaff);
+        availabilityContainer.addEventListener('click', toggleAvailability);
+        generateBtn.addEventListener('click', generateSchedule);
+        clearHistoryBtn.addEventListener('click', clearHistory);
+        viewHistoryBtn.addEventListener('click', showHistoryView);
+        backToMainBtn.addEventListener('click', showMainView);
+    </script>
 </body>
 </html>
-
 
