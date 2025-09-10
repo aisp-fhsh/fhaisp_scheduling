@@ -694,7 +694,7 @@
                 scheduleDisplay.innerHTML = '';
                 schedule.forEach((people, index) => {
                     const dayItem = document.createElement('div');
-                    // Add a specific class for easier selection
+                    // Add a specific class for easier selection 
                     dayItem.className = 'schedule-day-item bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2 transition-all duration-300';
                     const dateStr = dates[index].toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     dayItem.innerHTML = `
