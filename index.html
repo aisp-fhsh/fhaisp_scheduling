@@ -149,9 +149,10 @@
 
 
         /* Calendar Styles */
+        #calendar-weekdays,
         #calendar-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 0.5rem;
         }
         .calendar-day {
@@ -300,8 +301,8 @@
                     <h3 id="monthYearDisplay" class="text-xl font-bold"></h3>
                     <button id="nextMonthBtn" class="btn p-2 w-10 h-10">&gt;</button>
                 </div>
-                <div id="calendar-weekdays" class="grid grid-cols-7 gap-2 mb-2 text-center text-gray-400 font-bold"></div>
-                <div id="calendar-grid" class="grid grid-cols-7 gap-2"></div>
+                <div id="calendar-weekdays" class="grid grid-cols-5 gap-2 mb-2 text-center text-gray-400 font-bold"></div>
+                <div id="calendar-grid" class="grid grid-cols-5 gap-2"></div>
             </div>
             <div id="historyScheduleDisplay" class="mt-4 p-4 bg-gray-800 bg-opacity-50 rounded-lg min-h-[100px]">
                 <p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>
@@ -434,31 +435,39 @@
                 const month = calendarDate.getMonth();
                 monthYearDisplay.textContent = `${year}年 ${month + 1}月`;
                 
-                ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
+                ['一', '二', '三', '四', '五'].forEach(day => {
                     const dayEl = document.createElement('div');
                     dayEl.textContent = day;
                     calendarWeekdays.appendChild(dayEl);
                 });
                 
-                const firstDayOfMonth = new Date(year, month, 1).getDay();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                
-                for (let i = 0; i < firstDayOfMonth; i++) {
+                const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=Sun, 1=Mon...
+
+                // Calculate padding for a Monday-start week.
+                let paddingDays = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
+
+                for (let i = 0; i < paddingDays; i++) {
                     calendarGrid.appendChild(document.createElement('div'));
                 }
                 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    const dayEl = document.createElement('div');
-                    dayEl.textContent = day;
-                    dayEl.classList.add('calendar-day');
                     const currentDate = new Date(year, month, day);
-                    const dateStr = formatDate(currentDate);
-                    
-                    if (scheduleHistory[dateStr]) {
-                        dayEl.classList.add('has-schedule');
-                        dayEl.dataset.date = dateStr;
+                    const dayOfWeek = currentDate.getDay();
+
+                    // Only render if it's a weekday (Monday to Friday)
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        const dayEl = document.createElement('div');
+                        dayEl.textContent = day;
+                        dayEl.classList.add('calendar-day');
+                        const dateStr = formatDate(currentDate);
+                        
+                        if (scheduleHistory[dateStr]) {
+                            dayEl.classList.add('has-schedule');
+                            dayEl.dataset.date = dateStr;
+                        }
+                        calendarGrid.appendChild(dayEl);
                     }
-                    calendarGrid.appendChild(dayEl);
                 }
                 // Re-apply search highlight if a search is active
                 if(historySearchInput.value.trim()){
@@ -567,9 +576,11 @@
                 
                 if (!searchTerm) return [];
                 
-                const foundDates = Object.keys(scheduleHistory).filter(date => 
-                    scheduleHistory[date].some(name => name.toLowerCase().includes(searchTerm))
-                );
+                const foundDates = Object.keys(scheduleHistory).filter(date => {
+                    const people = scheduleHistory[date];
+                    // Defensive check to prevent errors if data is malformed
+                    return Array.isArray(people) && people.some(name => typeof name === 'string' && name.toLowerCase().includes(searchTerm));
+                });
 
                 document.querySelectorAll('.calendar-day').forEach(dayEl => {
                     if (foundDates.includes(dayEl.dataset.date)) {
@@ -666,8 +677,13 @@
                     const scheduleDates = [];
                     const baseDate = new Date(startDateInput.value + 'T00:00:00');
                     for(let i=0; i<5; i++){
-                        const currentDate = new Date(baseDate);
+                        let currentDate = new Date(baseDate);
                         currentDate.setDate(baseDate.getDate() + i);
+                        // Skip weekends when generating schedule dates
+                        while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+                           currentDate.setDate(currentDate.getDate() + 1);
+                           baseDate.setDate(baseDate.getDate() + 1); // Also advance the base date
+                        }
                         scheduleDates.push(currentDate);
                     }
                     
