@@ -234,9 +234,7 @@
                     <button id="addStaffBtn" class="btn">新增人員</button>
                 </div>
                  <div class="flex gap-4 mt-2">
-                    <button id="exportDataBtn" class="btn btn-sm">匯出資料</button>
-                    <label for="importDataInput" class="btn btn-sm cursor-pointer">匯入資料</label>
-                    <input type="file" id="importDataInput" class="hidden" accept=".json">
+                    <button id="exportDataBtn" class="btn btn-sm">匯出成 Excel (CSV)</button>
                 </div>
                 <div id="staffList" class="space-y-2"></div>
             </div>
@@ -335,8 +333,7 @@
             
             // Import/Export Elements
             const exportDataBtn = document.getElementById('exportDataBtn');
-            const importDataInput = document.getElementById('importDataInput');
-
+            
             // Search Elements
             const currentSearchInput = document.getElementById('currentSearchInput');
             const currentSearchBtn = document.getElementById('currentSearchBtn');
@@ -569,53 +566,40 @@
             // --- Import / Export Logic ---
             exportDataBtn.addEventListener('click', () => {
                 try {
-                    const dataToExport = {
-                        staffMembers,
-                        availability,
-                        scheduleHistory
-                    };
-                    const dataStr = JSON.stringify(dataToExport, null, 2);
-                    const blob = new Blob([dataStr], {type: "application/json"});
+                    if (Object.keys(scheduleHistory).length === 0) {
+                        displayError('沒有歷史紀錄可匯出。');
+                        return;
+                    }
+
+                    // Add BOM for Excel to recognize UTF-8 encoding
+                    let csvContent = '\uFEFF';
+                    csvContent += "日期,上班人員\r\n"; // CSV Header
+
+                    // Sort dates before exporting for a clean, chronological list
+                    const sortedDates = Object.keys(scheduleHistory).sort();
+
+                    sortedDates.forEach(date => {
+                        const staff = scheduleHistory[date];
+                        if (Array.isArray(staff) && staff.length > 0) {
+                            // Enclose the staff list in quotes to handle multiple names in one cell
+                            const staffString = `"${staff.join('、 ')}"`;
+                            csvContent += `${date},${staffString}\r\n`;
+                        }
+                    });
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `排班系統資料_${formatDate(new Date())}.json`;
+                    a.download = `排班紀錄_${formatDate(new Date())}.csv`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+
                 } catch (error) {
                     displayError('匯出資料時發生錯誤: ' + error.message);
                 }
-            });
-
-            importDataInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) {
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        if (importedData.staffMembers && importedData.availability && importedData.scheduleHistory) {
-                            staffMembers = importedData.staffMembers;
-                            availability = importedData.availability;
-                            scheduleHistory = importedData.scheduleHistory;
-                            saveData();
-                            renderAll();
-                            // Optional: Give user feedback
-                            alert('資料已成功匯入！');
-                        } else {
-                            displayError('匯入失敗：檔案格式不符。');
-                        }
-                    } catch (error) {
-                        displayError('匯入失敗：無法解析檔案。請確認檔案是否為正確的 JSON 格式。');
-                    }
-                };
-                reader.readAsText(file);
-                // Reset file input to allow importing the same file again
-                importDataInput.value = '';
             });
 
             // --- Search Logic ---
