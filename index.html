@@ -314,7 +314,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
 
         // V IMPORTANT INSTRUCTION V
         // Please paste your Firebase config object here.
@@ -715,7 +715,12 @@
             }
 
             // --- Initial Load ---
+            // 1. Set default date
             startDateInput.value = formatDate(new Date());
+            // 2. Do an initial render of the UI with empty data.
+            // This makes the page interactive immediately, even before Firebase connects.
+            renderAll();
+            // 3. Initialize Firebase to load cloud data and enable sync.
             initFirebase();
         });
     </script>
