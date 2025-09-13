@@ -355,7 +355,7 @@
             let availability = {};
             let scheduleHistory = {};
             let calendarDate = new Date();
-            let lastScheduleView = { schedule: [], dates: [] };
+            let lastGeneratedStartDate = null;
 
             // --- Utility Functions ---
             function formatDate(date) {
@@ -367,23 +367,44 @@
                 const storedStaff = localStorage.getItem('staffMembers');
                 const storedAvailability = localStorage.getItem('availability');
                 const storedHistory = localStorage.getItem('scheduleHistory');
-                const storedLastView = localStorage.getItem('lastScheduleView');
+                const storedLastStartDate = localStorage.getItem('lastGeneratedStartDate');
 
                 if (storedStaff) staffMembers = JSON.parse(storedStaff);
                 if (storedAvailability) availability = JSON.parse(storedAvailability);
                 if (storedHistory) scheduleHistory = JSON.parse(storedHistory);
-                
-                if (storedLastView) {
+                if (storedLastStartDate) lastGeneratedStartDate = storedLastStartDate;
+
+                // Restore the last generated schedule view
+                if (lastGeneratedStartDate && scheduleHistory) {
                     try {
-                        const parsedView = JSON.parse(storedLastView);
-                        lastScheduleView = parsedView;
-                        if(lastScheduleView.schedule && lastScheduleView.dates && lastScheduleView.schedule.length > 0) {
-                            const dates = lastScheduleView.dates.map(dateStr => new Date(dateStr));
-                            displaySchedule(lastScheduleView.schedule, dates);
+                        const lastSchedule = [];
+                        const lastDates = [];
+                        let currentDate = new Date(lastGeneratedStartDate + 'T00:00:00');
+
+                        for (let i = 0; i < 5; i++) {
+                            // Skip weekends
+                            while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+                               currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                            const dateKey = formatDate(currentDate);
+                            if (scheduleHistory[dateKey]) {
+                                lastSchedule.push(scheduleHistory[dateKey]);
+                                lastDates.push(new Date(currentDate)); // Push a copy
+                            } else {
+                                // If a day is missing from the 5-day block, don't show anything
+                                lastSchedule = [];
+                                break;
+                            }
+                            currentDate.setDate(currentDate.getDate() + 1);
                         }
+                        
+                        if (lastSchedule.length === 5) {
+                             displaySchedule(lastSchedule, lastDates);
+                        }
+
                     } catch (e) {
-                        console.error("Could not parse last schedule view:", e);
-                        localStorage.removeItem('lastScheduleView'); // Clear corrupted data
+                        console.error("Could not reconstruct last schedule view:", e);
+                        localStorage.removeItem('lastGeneratedStartDate'); // Clear corrupted data
                     }
                 }
                 
@@ -395,7 +416,11 @@
                 localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
                 localStorage.setItem('availability', JSON.stringify(availability));
                 localStorage.setItem('scheduleHistory', JSON.stringify(scheduleHistory));
-                localStorage.setItem('lastScheduleView', JSON.stringify(lastScheduleView));
+                 if (lastGeneratedStartDate) {
+                    localStorage.setItem('lastGeneratedStartDate', lastGeneratedStartDate);
+                } else {
+                    localStorage.removeItem('lastGeneratedStartDate');
+                }
             }
 
             // --- Rendering Functions ---
@@ -760,8 +785,7 @@
                     }
                     
                     // Update global state objects
-                    lastScheduleView.schedule = generatedSchedule;
-                    lastScheduleView.dates = scheduleDates.map(d => d.toISOString());
+                    lastGeneratedStartDate = formatDate(scheduleDates[0]);
                     generatedSchedule.forEach((people, index) => {
                         const dateStr = formatDate(scheduleDates[index]);
                         scheduleHistory[dateStr] = people;
