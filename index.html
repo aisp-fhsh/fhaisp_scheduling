@@ -693,7 +693,12 @@
                     for (let day = 0; day < 5; day++) {
                         const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name] && availability[p.name][day]);
                         if (availableCadres.length === 0) { validAttempt = false; break; }
-                        const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
+                        
+                        // Shuffle before sorting to randomize selection among cadres with equal work counts
+                        const cadreToSchedule = availableCadres
+                            .sort(() => 0.5 - Math.random()) // Shuffle to break ties
+                            .sort((a, b) => workCounts[a.name] - workCounts[b.name])[0]; // Then sort to prioritize fewer shifts
+
                         currentSchedule[day].push(cadreToSchedule.name);
                         workCounts[cadreToSchedule.name]++;
                     }
@@ -702,7 +707,12 @@
                     for (let day = 0; day < 5; day++) {
                         const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name] && availability[p.name][day]);
                         if (availableOthers.length < 2) { validAttempt = false; break; }
-                        const sortedAvailable = availableOthers.sort((a, b) => workCounts[a.name] - workCounts[b.name]);
+                        
+                        // Shuffle before sorting to randomize selection among members with equal work counts
+                        const sortedAvailable = availableOthers
+                            .sort(() => 0.5 - Math.random()) // Shuffle to break ties
+                            .sort((a, b) => workCounts[a.name] - workCounts[b.name]);
+
                         currentSchedule[day].push(sortedAvailable[0].name);
                         workCounts[sortedAvailable[0].name]++;
                         currentSchedule[day].push(sortedAvailable[1].name);
