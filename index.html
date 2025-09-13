@@ -371,6 +371,22 @@
                 if (storedAvailability) availability = JSON.parse(storedAvailability);
                 if (storedHistory) scheduleHistory = JSON.parse(storedHistory);
                 startDateInput.value = formatDate(new Date());
+
+                // Restore the last generated schedule view
+                const storedLastSchedule = localStorage.getItem('lastScheduleData');
+                if (storedLastSchedule) {
+                    try {
+                        const lastScheduleData = JSON.parse(storedLastSchedule);
+                        if(lastScheduleData.schedule && lastScheduleData.dates) {
+                            const dates = lastScheduleData.dates.map(dateStr => new Date(dateStr));
+                            displaySchedule(lastScheduleData.schedule, dates);
+                        }
+                    } catch (e) {
+                        console.error("Could not parse last schedule data:", e);
+                        localStorage.removeItem('lastScheduleData'); // Clear corrupted data
+                    }
+                }
+                
                 renderAll();
             }
 
@@ -745,6 +761,14 @@
                     }
                     
                     displaySchedule(generatedSchedule, scheduleDates);
+                    
+                    // Save the generated schedule for persistence across reloads
+                    const lastScheduleData = {
+                        schedule: generatedSchedule,
+                        dates: scheduleDates.map(d => d.toISOString()) // Store as string
+                    };
+                    localStorage.setItem('lastScheduleData', JSON.stringify(lastScheduleData));
+
 
                     generatedSchedule.forEach((people, index) => {
                         const dateStr = formatDate(scheduleDates[index]);
