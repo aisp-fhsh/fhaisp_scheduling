@@ -710,8 +710,9 @@
 
             // --- Schedule Generation Logic ---
             generateBtn.addEventListener('click', () => {
+                // Ensure at least 3 staff members exist to draw from, and at least one is a cadre
                 if (staffMembers.length < 3) {
-                    displayError('人員太少，無法排班 (需要至少3人)');
+                    displayError('人員總數不足，無法排班 (需要至少3人)');
                     return;
                 }
                 if (!startDateInput.value) {
@@ -734,34 +735,50 @@
                     let validAttempt = true;
 
                     for (let day = 0; day < 5; day++) {
-                        const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name] && availability[p.name][day]);
-                        if (availableCadres.length === 0) { validAttempt = false; break; }
-                        
-                        const cadreToSchedule = availableCadres
-                            .sort(() => 0.5 - Math.random()) 
-                            .sort((a, b) => workCounts[a.name] - workCounts[b.name])[0]; 
+                        // Get all available staff, but ensure there's at least one available cadre for the day
+                        const availableStaff = staffMembers.filter(p => availability[p.name] && availability[p.name][day]);
+                        const availableCadresToday = availableStaff.filter(p => p.category === 'cadre');
 
-                        currentSchedule[day].push(cadreToSchedule.name);
-                        workCounts[cadreToSchedule.name]++;
-                    }
-                    if (!validAttempt) continue;
+                        if (availableStaff.length < 3 || availableCadresToday.length < 1) {
+                            validAttempt = false;
+                            break;
+                        }
 
-                    for (let day = 0; day < 5; day++) {
-                        const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name] && availability[p.name][day]);
-                        if (availableOthers.length < 2) { validAttempt = false; break; }
-                        
-                        const sortedAvailable = availableOthers
-                            .sort(() => 0.5 - Math.random())
+                        // Sort all available staff by work count to ensure fairness
+                        const sortedAvailable = availableStaff
+                            .sort(() => 0.5 - Math.random()) // Shuffle for randomness
                             .sort((a, b) => workCounts[a.name] - workCounts[b.name]);
 
-                        currentSchedule[day].push(sortedAvailable[0].name);
-                        workCounts[sortedAvailable[0].name]++;
-                        currentSchedule[day].push(sortedAvailable[1].name);
-                        workCounts[sortedAvailable[1].name]++;
+                        let daySchedule = [];
+                        let hasCadre = false;
+
+                        // Try to pick 3 people, ensuring at least one is a cadre
+                        let potentialPicks = sortedAvailable.slice(0, 3);
+                        hasCadre = potentialPicks.some(p => p.category === 'cadre');
+
+                        if (!hasCadre) {
+                           // If the top 3 don't have a cadre, swap the last person
+                           // with the cadre who has the fewest shifts.
+                           const nonCadreToRemove = potentialPicks.pop();
+                           const cadreToAdd = availableCadresToday.sort((a,b) => workCounts[a.name] - workCounts[b.name])[0];
+                           potentialPicks.push(cadreToAdd);
+                        }
+                        
+                        daySchedule = potentialPicks;
+                        
+                        // Assign to schedule and update counts
+                        daySchedule.forEach(person => {
+                            currentSchedule[day].push(person.name);
+                            workCounts[person.name]++;
+                        });
                     }
+
                     if (!validAttempt) continue;
                     
-                    const allCountsValid = staffMembers.every(p => { const count = workCounts[p.name]; return count >= 1 && count <= 2; });
+                    const allCountsValid = staffMembers.every(p => { 
+                        const count = workCounts[p.name]; 
+                        return count >= 1 && count <= 3; // Relaxed constraint for more flexibility
+                    });
 
                     if (allCountsValid) {
                         generatedSchedule = currentSchedule;
@@ -784,17 +801,13 @@
                         scheduleDates.push(currentDate);
                     }
                     
-                    // Update global state objects
                     lastGeneratedStartDate = formatDate(scheduleDates[0]);
                     generatedSchedule.forEach((people, index) => {
                         const dateStr = formatDate(scheduleDates[index]);
                         scheduleHistory[dateStr] = people;
                     });
                     
-                    // Save everything at once
                     saveData();
-
-                    // Render updates
                     displaySchedule(generatedSchedule, scheduleDates);
                     renderCalendar();
                 } else {
@@ -815,7 +828,8 @@
                         </ul>
                     `;
                     scheduleDisplay.appendChild(dayItem);
-                });
+                }
+                );
                 scheduleResultContainer.classList.remove('hidden');
             }
 
