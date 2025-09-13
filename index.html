@@ -353,9 +353,9 @@
             // Data State
             let staffMembers = []; 
             let availability = {};
-            let scheduleHistory = {}; // Changed to object for easier date lookup
+            let scheduleHistory = {};
             let calendarDate = new Date();
-            let lastGeneratedSchedule = [];
+            let lastScheduleView = { schedule: [], dates: [] };
 
             // --- Utility Functions ---
             function formatDate(date) {
@@ -367,26 +367,27 @@
                 const storedStaff = localStorage.getItem('staffMembers');
                 const storedAvailability = localStorage.getItem('availability');
                 const storedHistory = localStorage.getItem('scheduleHistory');
+                const storedLastView = localStorage.getItem('lastScheduleView');
+
                 if (storedStaff) staffMembers = JSON.parse(storedStaff);
                 if (storedAvailability) availability = JSON.parse(storedAvailability);
                 if (storedHistory) scheduleHistory = JSON.parse(storedHistory);
-                startDateInput.value = formatDate(new Date());
-
-                // Restore the last generated schedule view
-                const storedLastSchedule = localStorage.getItem('lastScheduleData');
-                if (storedLastSchedule) {
+                
+                if (storedLastView) {
                     try {
-                        const lastScheduleData = JSON.parse(storedLastSchedule);
-                        if(lastScheduleData.schedule && lastScheduleData.dates) {
-                            const dates = lastScheduleData.dates.map(dateStr => new Date(dateStr));
-                            displaySchedule(lastScheduleData.schedule, dates);
+                        const parsedView = JSON.parse(storedLastView);
+                        lastScheduleView = parsedView;
+                        if(lastScheduleView.schedule && lastScheduleView.dates && lastScheduleView.schedule.length > 0) {
+                            const dates = lastScheduleView.dates.map(dateStr => new Date(dateStr));
+                            displaySchedule(lastScheduleView.schedule, dates);
                         }
                     } catch (e) {
-                        console.error("Could not parse last schedule data:", e);
-                        localStorage.removeItem('lastScheduleData'); // Clear corrupted data
+                        console.error("Could not parse last schedule view:", e);
+                        localStorage.removeItem('lastScheduleView'); // Clear corrupted data
                     }
                 }
                 
+                startDateInput.value = formatDate(new Date());
                 renderAll();
             }
 
@@ -394,6 +395,7 @@
                 localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
                 localStorage.setItem('availability', JSON.stringify(availability));
                 localStorage.setItem('scheduleHistory', JSON.stringify(scheduleHistory));
+                localStorage.setItem('lastScheduleView', JSON.stringify(lastScheduleView));
             }
 
             // --- Rendering Functions ---
@@ -710,10 +712,9 @@
                         const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name] && availability[p.name][day]);
                         if (availableCadres.length === 0) { validAttempt = false; break; }
                         
-                        // Shuffle before sorting to randomize selection among cadres with equal work counts
                         const cadreToSchedule = availableCadres
-                            .sort(() => 0.5 - Math.random()) // Shuffle to break ties
-                            .sort((a, b) => workCounts[a.name] - workCounts[b.name])[0]; // Then sort to prioritize fewer shifts
+                            .sort(() => 0.5 - Math.random()) 
+                            .sort((a, b) => workCounts[a.name] - workCounts[b.name])[0]; 
 
                         currentSchedule[day].push(cadreToSchedule.name);
                         workCounts[cadreToSchedule.name]++;
@@ -724,9 +725,8 @@
                         const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name] && availability[p.name][day]);
                         if (availableOthers.length < 2) { validAttempt = false; break; }
                         
-                        // Shuffle before sorting to randomize selection among members with equal work counts
                         const sortedAvailable = availableOthers
-                            .sort(() => 0.5 - Math.random()) // Shuffle to break ties
+                            .sort(() => 0.5 - Math.random())
                             .sort((a, b) => workCounts[a.name] - workCounts[b.name]);
 
                         currentSchedule[day].push(sortedAvailable[0].name);
@@ -746,35 +746,32 @@
                 }
 
                 if (scheduleFound) {
-                    lastGeneratedSchedule = generatedSchedule; // Store for current search
                     const scheduleDates = [];
                     const baseDate = new Date(startDateInput.value + 'T00:00:00');
                     for(let i=0; i<5; i++){
                         let currentDate = new Date(baseDate);
                         currentDate.setDate(baseDate.getDate() + i);
-                        // Skip weekends when generating schedule dates
+                        
                         while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
                            currentDate.setDate(currentDate.getDate() + 1);
-                           baseDate.setDate(baseDate.getDate() + 1); // Also advance the base date
+                           baseDate.setDate(baseDate.getDate() + 1); 
                         }
                         scheduleDates.push(currentDate);
                     }
                     
-                    displaySchedule(generatedSchedule, scheduleDates);
-                    
-                    // Save the generated schedule for persistence across reloads
-                    const lastScheduleData = {
-                        schedule: generatedSchedule,
-                        dates: scheduleDates.map(d => d.toISOString()) // Store as string
-                    };
-                    localStorage.setItem('lastScheduleData', JSON.stringify(lastScheduleData));
-
-
+                    // Update global state objects
+                    lastScheduleView.schedule = generatedSchedule;
+                    lastScheduleView.dates = scheduleDates.map(d => d.toISOString());
                     generatedSchedule.forEach((people, index) => {
                         const dateStr = formatDate(scheduleDates[index]);
                         scheduleHistory[dateStr] = people;
                     });
+                    
+                    // Save everything at once
                     saveData();
+
+                    // Render updates
+                    displaySchedule(generatedSchedule, scheduleDates);
                     renderCalendar();
                 } else {
                     displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
@@ -785,7 +782,6 @@
                 scheduleDisplay.innerHTML = '';
                 schedule.forEach((people, index) => {
                     const dayItem = document.createElement('div');
-                    // Add a specific class for easier selection
                     dayItem.className = 'schedule-day-item bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2 transition-all duration-300';
                     const dateStr = dates[index].toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     dayItem.innerHTML = `
