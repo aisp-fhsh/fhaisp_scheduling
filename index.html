@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
@@ -316,6 +316,21 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // V IMPORTANT INSTRUCTION V
+        // Please paste your Firebase config object here.
+        // You can get this from the Firebase console:
+        // Project settings > General > Your apps > Web app > SDK setup and configuration > Config
+        const MANUAL_FIREBASE_CONFIG = {
+            // apiKey: "...",
+            // authDomain: "...",
+            // projectId: "...",
+            // storageBucket: "...",
+            // messagingSenderId: "...",
+            // appId: "..."
+        };
+        // ^ IMPORTANT INSTRUCTION ^
+
+
         document.addEventListener('DOMContentLoaded', async () => {
             // DOM Elements
             const staffNameInput = document.getElementById('staffNameInput');
@@ -360,12 +375,14 @@
             async function initFirebase() {
                 try {
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-public-scheduler';
-                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+                    
+                    // Use manual config if available, otherwise try the injected one
+                    const firebaseConfig = MANUAL_FIREBASE_CONFIG.apiKey ? MANUAL_FIREBASE_CONFIG : (typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null);
                     
                     if (!firebaseConfig || !firebaseConfig.apiKey) {
                         syncStatus.textContent = "錯誤：缺少 Firebase 設定";
                         syncStatus.style.color = "#ef4444"; // Red
-                        console.error("Firebase config is missing or invalid.");
+                        console.error("Firebase config is missing or invalid. Please paste it into the MANUAL_FIREBASE_CONFIG object in the script.");
                         return;
                     }
 
@@ -373,8 +390,8 @@
                     db = getFirestore(app);
                     auth = getAuth(app);
                     
-                    // Path to the shared document in Firestore - CORRECTED PATH
-                    docRef = doc(db, 'artifacts', appId, 'public', 'data', 'scheduler', 'state');
+                    // Correct, even-segmented path (6 segments)
+                    docRef = doc(db, 'artifacts', appId, 'public/data', 'scheduler', 'sharedState');
 
                     await signIn();
                     
@@ -417,287 +434,11 @@
 
             async function signIn() {
                 try {
+                    // Prioritize injected token if available
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
-                } catch (error) {
-                    console.error("Authentication failed: ", error);
-                    syncStatus.textContent = "驗證失敗";
-                    syncStatus.style.color = "#ef4444";
-                }
-            }
-            
-            async function saveDataToFirebase() {
-                if (!docRef) return;
-                try {
-                    await setDoc(docRef, {
-                        staffMembers,
-                        availability,
-                        scheduleHistory
-                    }, { merge: true }); // Merge to avoid overwriting fields
-                } catch (error) {
-                    console.error("Error writing to Firestore: ", error);
-                    syncStatus.textContent = "儲存失敗";
-                    syncStatus.style.color = "#ef4444";
-                }
-            }
-
-            // --- Utility Functions ---
-            function formatDate(date) {
-                return date.toISOString().split('T')[0];
-            }
-
-            // --- Rendering Functions ---
-            function renderAll() {
-                renderStaffList();
-                renderAvailabilityGrid();
-                renderCalendar();
-            }
-
-            function renderStaffList() {
-                staffListContainer.innerHTML = '';
-                if (staffMembers.length === 0) {
-                    staffListContainer.innerHTML = '<p class="text-center text-gray-400">目前沒有人員。</p>';
-                }
-                staffMembers.forEach(person => {
-                    const categoryText = person.category === 'cadre' ? '幹部' : '成員';
-                    const personItem = document.createElement('div');
-                    personItem.className = 'person-item';
-                    personItem.innerHTML = `
-                        <span>${person.name} (${categoryText})</span>
-                        <button class="btn-red p-2 rounded-full w-8 h-8 flex items-center justify-center text-sm" data-name="${person.name}">
-                            &times;
-                        </button>
-                    `;
-                    staffListContainer.appendChild(personItem);
-                });
-            }
-
-            function renderAvailabilityGrid() {
-                availabilityGridContainer.innerHTML = '';
-                staffMembers.forEach(person => {
-                    if (!availability[person.name]) {
-                        availability[person.name] = new Array(5).fill(true);
-                    }
-                    const row = document.createElement('div');
-                    row.className = 'contents';
-                    
-                    const nameCell = document.createElement('div');
-                    nameCell.className = 'grid-cell text-left font-bold sm:col-span-1 col-span-2';
-                    nameCell.textContent = person.name;
-                    row.appendChild(nameCell);
-
-                    for (let i = 0; i < 5; i++) {
-                        const dayCell = document.createElement('div');
-                        dayCell.className = `grid-cell schedule-cell ${availability[person.name][i] ? 'available' : 'unavailable'}`;
-                        dayCell.dataset.day = i;
-                        dayCell.dataset.person = person.name;
-                        dayCell.textContent = weekdays[i];
-                        row.appendChild(dayCell);
-                    }
-                    availabilityGridContainer.appendChild(row);
-                });
-            }
-            
-            function renderCalendar() {
-                calendarGrid.innerHTML = '';
-                calendarWeekdays.innerHTML = '';
-                const year = calendarDate.getFullYear();
-                const month = calendarDate.getMonth();
-                monthYearDisplay.textContent = `${year}年 ${month + 1}月`;
-                ['一', '二', '三', '四', '五'].forEach(day => {
-                    const dayEl = document.createElement('div'); dayEl.textContent = day; calendarWeekdays.appendChild(dayEl);
-                });
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const firstDayOfMonth = new Date(year, month, 1).getDay();
-                let paddingDays = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
-                for (let i = 0; i < paddingDays; i++) { calendarGrid.appendChild(document.createElement('div')); }
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const currentDate = new Date(year, month, day);
-                    const dayOfWeek = currentDate.getDay();
-                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                        const dayEl = document.createElement('div');
-                        dayEl.textContent = day;
-                        dayEl.classList.add('calendar-day');
-                        const dateStr = formatDate(currentDate);
-                        if (scheduleHistory[dateStr]) {
-                            dayEl.classList.add('has-schedule'); dayEl.dataset.date = dateStr;
-                        }
-                        calendarGrid.appendChild(dayEl);
-                    }
-                }
-                if(historySearchInput.value.trim()){ highlightCalendarFromSearch(); }
-            }
-            
-            // --- Event Listeners ---
-            addStaffBtn.addEventListener('click', () => {
-                const name = staffNameInput.value.trim();
-                const category = staffCategorySelect.value;
-                if (name && !staffMembers.some(p => p.name === name)) {
-                    staffMembers.push({ name, category });
-                    availability[name] = new Array(5).fill(true);
-                    saveDataToFirebase();
-                    staffNameInput.value = '';
-                }
-            });
-
-            staffListContainer.addEventListener('click', (event) => {
-                if (event.target.tagName === 'BUTTON') {
-                    const name = event.target.dataset.name;
-                    staffMembers = staffMembers.filter(p => p.name !== name);
-                    delete availability[name];
-                    saveDataToFirebase();
-                }
-            });
-
-            availabilityGridContainer.addEventListener('click', (event) => {
-                const target = event.target;
-                if (target.classList.contains('schedule-cell')) {
-                    const person = target.dataset.person;
-                    const day = parseInt(target.dataset.day, 10);
-                    availability[person][day] = !availability[person][day];
-                    saveDataToFirebase();
-                }
-            });
-
-            showSchedulerBtn.addEventListener('click', () => {
-                schedulerView.classList.remove('hidden'); historyView.classList.add('hidden');
-                showSchedulerBtn.classList.add('active'); showHistoryBtn.classList.remove('active');
-            });
-            showHistoryBtn.addEventListener('click', () => {
-                schedulerView.classList.add('hidden'); historyView.classList.remove('hidden');
-                showSchedulerBtn.classList.remove('active'); showHistoryBtn.classList.add('active');
-                renderCalendar();
-            });
-            prevMonthBtn.addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
-            nextMonthBtn.addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
-            
-            calendarGrid.addEventListener('click', (e) => {
-                const target = e.target;
-                if (target.classList.contains('has-schedule')) {
-                    const dateStr = target.dataset.date;
-                    const people = scheduleHistory[dateStr];
-                    historyScheduleDisplay.innerHTML = `<h3 class="text-xl font-bold mb-2">${dateStr} 排班人員</h3><ul class="list-disc list-inside space-y-1">${people.map(p => `<li>${p}</li>`).join('')}</ul>`;
-                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                    target.classList.add('selected');
-                }
-            });
-
-            function performCurrentSearch() {
-                const searchTerm = currentSearchInput.value.trim().toLowerCase();
-                document.querySelectorAll('#scheduleDisplay .schedule-day-item').forEach(item => {
-                    item.classList.remove('highlight');
-                    if (searchTerm) {
-                        const names = Array.from(item.querySelectorAll('li')).map(li => li.textContent.trim().toLowerCase());
-                        if (names.some(name => name.includes(searchTerm))) { item.classList.add('highlight'); }
-                    }
-                });
-            }
-
-            function highlightCalendarFromSearch() {
-                const searchTerm = historySearchInput.value.trim().toLowerCase();
-                document.querySelectorAll('.calendar-day').forEach(dayEl => dayEl.classList.remove('search-highlight'));
-                if (!searchTerm) return [];
-                const foundDates = Object.keys(scheduleHistory).filter(date => {
-                    const people = scheduleHistory[date];
-                    return Array.isArray(people) && people.some(name => typeof name === 'string' && name.toLowerCase().includes(searchTerm));
-                });
-                document.querySelectorAll('.calendar-day').forEach(dayEl => {
-                    if (foundDates.includes(dayEl.dataset.date)) { dayEl.classList.add('search-highlight'); }
-                });
-                return foundDates;
-            }
-            
-            function performHistorySearch() {
-                const searchTerm = historySearchInput.value.trim();
-                const foundDates = highlightCalendarFromSearch();
-                if (!searchTerm) {
-                    historyScheduleDisplay.innerHTML = '<p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>'; return;
-                }
-                if (foundDates.length > 0) {
-                    historyScheduleDisplay.innerHTML = `<h3 class="text-xl font-bold mb-2">找到 ${searchTerm} 在以下 ${foundDates.length} 天有排班：</h3><ul class="list-disc list-inside space-y-1 max-h-40 overflow-y-auto">${foundDates.sort().map(d => `<li>${d}</li>`).join('')}</ul>`;
-                } else {
-                    historyScheduleDisplay.innerHTML = `<p class="text-center text-gray-400">在歷史紀錄中找不到 ${searchTerm} 的排班。</p>`;
-                }
-            }
-            
-            currentSearchBtn.addEventListener('click', performCurrentSearch);
-            currentSearchInput.addEventListener('input', performCurrentSearch);
-            historySearchBtn.addEventListener('click', performHistorySearch);
-            historySearchInput.addEventListener('input', performHistorySearch);
-
-            generateBtn.addEventListener('click', () => {
-                if (staffMembers.length < 3) { displayError('人員太少，無法排班 (需要至少3人)'); return; }
-                if (!startDateInput.value) { displayError('請選擇排班開始日期'); return; }
-                scheduleResultContainer.classList.add('hidden'); errorMessage.classList.add('hidden'); scheduleDisplay.innerHTML = '';
-                let scheduleFound = false, generatedSchedule = [];
-                for (let attempt = 0; attempt < 100; attempt++) {
-                    const currentSchedule = new Array(5).fill(null).map(() => []);
-                    const workCounts = {};
-                    staffMembers.forEach(p => workCounts[p.name] = 0);
-                    let validAttempt = true;
-                    for (let day = 0; day < 5; day++) {
-                        const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name] && availability[p.name][day]);
-                        if (availableCadres.length === 0) { validAttempt = false; break; }
-                        const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
-                        currentSchedule[day].push(cadreToSchedule.name); workCounts[cadreToSchedule.name]++;
-                    }
-                    if (!validAttempt) continue;
-                    for (let day = 0; day < 5; day++) {
-                        const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name] && availability[p.name][day]);
-                        if (availableOthers.length < 2) { validAttempt = false; break; }
-                        const sortedAvailable = availableOthers.sort((a, b) => workCounts[a.name] - workCounts[b.name]);
-                        currentSchedule[day].push(sortedAvailable[0].name); workCounts[sortedAvailable[0].name]++;
-                        currentSchedule[day].push(sortedAvailable[1].name); workCounts[sortedAvailable[1].name]++;
-                    }
-                    if (!validAttempt) continue;
-                    const allCountsValid = staffMembers.every(p => { const count = workCounts[p.name]; return count >= 1 && count <= 2; });
-                    if (allCountsValid) { generatedSchedule = currentSchedule; scheduleFound = true; break; }
-                }
-                if (scheduleFound) {
-                    const scheduleDates = [], baseDate = new Date(startDateInput.value + 'T00:00:00');
-                    for(let i=0; i<5; i++){
-                        let currentDate = new Date(baseDate);
-                        currentDate.setDate(baseDate.getDate() + i);
-                        while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-                           currentDate.setDate(currentDate.getDate() + 1); baseDate.setDate(baseDate.getDate() + 1);
-                        }
-                        scheduleDates.push(currentDate);
-                    }
-                    displaySchedule(generatedSchedule, scheduleDates);
-                    generatedSchedule.forEach((people, index) => {
-                        scheduleHistory[formatDate(scheduleDates[index])] = people;
-                    });
-                    saveDataToFirebase();
-                } else {
-                    displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
-                }
-            });
-
-            function displaySchedule(schedule, dates) {
-                scheduleDisplay.innerHTML = '';
-                schedule.forEach((people, index) => {
-                    const dayItem = document.createElement('div');
-                    dayItem.className = 'schedule-day-item bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2 transition-all duration-300';
-                    const dateStr = dates[index].toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    dayItem.innerHTML = `<h3 class="text-xl font-bold">${dateStr}</h3><ul class="list-disc list-inside space-y-1">${people.map(p => `<li>${p}</li>`).join('')}</ul>`;
-                    scheduleDisplay.appendChild(dayItem);
-                });
-                scheduleResultContainer.classList.remove('hidden');
-            }
-
-            function displayError(message) {
-                errorMessage.textContent = message;
-                errorMessage.classList.remove('hidden');
-            }
-
-            // --- Initial Load ---
-            startDateInput.value = formatDate(new Date());
-            initFirebase();
-        });
-    </script>
-</body>
-</html>
+                } catch (error)
 
