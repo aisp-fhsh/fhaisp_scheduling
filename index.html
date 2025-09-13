@@ -219,6 +219,7 @@
                 <button id="showHistoryBtn" class="toggle-btn">歷史紀錄</button>
             </div>
         </div>
+        <p class="text-center text-xs text-gray-400">資料狀態: <span id="syncStatus">正在連線...</span></p>
 
         <!-- 排班主畫面 -->
         <div id="schedulerView">
@@ -232,11 +233,6 @@
                         <option value="cadre">幹部</option>
                     </select>
                     <button id="addStaffBtn" class="btn">新增人員</button>
-                </div>
-                 <div class="flex gap-4 mt-2">
-                    <button id="exportDataBtn" class="btn btn-sm">匯出資料</button>
-                    <label for="importDataInput" class="btn btn-sm cursor-pointer">匯入資料</label>
-                    <input type="file" id="importDataInput" class="hidden" accept=".json">
                 </div>
                 <div id="staffList" class="space-y-2"></div>
             </div>
@@ -315,8 +311,12 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
             // DOM Elements
             const staffNameInput = document.getElementById('staffNameInput');
             const staffCategorySelect = document.getElementById('staffCategorySelect');
@@ -332,18 +332,12 @@
             const showHistoryBtn = document.getElementById('showHistoryBtn');
             const schedulerView = document.getElementById('schedulerView');
             const historyView = document.getElementById('historyView');
+            const syncStatus = document.getElementById('syncStatus');
             
-            // Import/Export Elements
-            const exportDataBtn = document.getElementById('exportDataBtn');
-            const importDataInput = document.getElementById('importDataInput');
-
-            // Search Elements
             const currentSearchInput = document.getElementById('currentSearchInput');
             const currentSearchBtn = document.getElementById('currentSearchBtn');
             const historySearchInput = document.getElementById('historySearchInput');
             const historySearchBtn = document.getElementById('historySearchBtn');
-
-            // Calendar Elements
             const prevMonthBtn = document.getElementById('prevMonthBtn');
             const nextMonthBtn = document.getElementById('nextMonthBtn');
             const monthYearDisplay = document.getElementById('monthYearDisplay');
@@ -353,34 +347,106 @@
             
             const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
             
-            // Data State
+            // --- Local State ---
             let staffMembers = []; 
             let availability = {};
-            let scheduleHistory = {}; // Changed to object for easier date lookup
+            let scheduleHistory = {};
             let calendarDate = new Date();
-            let lastGeneratedSchedule = [];
+            let unsubscribe; // To stop listening to changes when needed
+
+            // --- Firebase Setup ---
+            let db, auth, docRef;
+
+            async function initFirebase() {
+                try {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-public-scheduler';
+                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+                    
+                    if (!firebaseConfig || !firebaseConfig.apiKey) {
+                        syncStatus.textContent = "錯誤：缺少 Firebase 設定";
+                        syncStatus.style.color = "#ef4444"; // Red
+                        console.error("Firebase config is missing or invalid.");
+                        return;
+                    }
+
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    // Path to the shared document in Firestore - CORRECTED PATH
+                    docRef = doc(db, 'artifacts', appId, 'public', 'data', 'scheduler', 'state');
+
+                    await signIn();
+                    
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                             if(unsubscribe) unsubscribe(); // Unsubscribe from previous listener if any
+                             unsubscribe = onSnapshot(docRef, (docSnap) => {
+                                if (docSnap.exists()) {
+                                    const data = docSnap.data();
+                                    staffMembers = data.staffMembers || [];
+                                    availability = data.availability || {};
+                                    scheduleHistory = data.scheduleHistory || {};
+                                } else {
+                                    // If doc doesn't exist, initialize with empty data
+                                    staffMembers = [];
+                                    availability = {};
+                                    scheduleHistory = {};
+                                }
+                                renderAll();
+                                syncStatus.textContent = "已同步";
+                                syncStatus.style.color = "#22c55e"; // Green
+                            }, (error) => {
+                                console.error("Error listening to document: ", error);
+                                syncStatus.textContent = "監聽錯誤";
+                                syncStatus.style.color = "#ef4444";
+                            });
+                        } else {
+                            if (unsubscribe) unsubscribe();
+                            syncStatus.textContent = "未驗證";
+                            syncStatus.style.color = "#eab308"; // Yellow
+                        }
+                    });
+
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                    syncStatus.textContent = "Firebase 初始化失敗";
+                    syncStatus.style.color = "#ef4444";
+                }
+            }
+
+            async function signIn() {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed: ", error);
+                    syncStatus.textContent = "驗證失敗";
+                    syncStatus.style.color = "#ef4444";
+                }
+            }
+            
+            async function saveDataToFirebase() {
+                if (!docRef) return;
+                try {
+                    await setDoc(docRef, {
+                        staffMembers,
+                        availability,
+                        scheduleHistory
+                    }, { merge: true }); // Merge to avoid overwriting fields
+                } catch (error) {
+                    console.error("Error writing to Firestore: ", error);
+                    syncStatus.textContent = "儲存失敗";
+                    syncStatus.style.color = "#ef4444";
+                }
+            }
 
             // --- Utility Functions ---
             function formatDate(date) {
                 return date.toISOString().split('T')[0];
-            }
-
-            // --- Data Persistence ---
-            function loadData() {
-                const storedStaff = localStorage.getItem('staffMembers');
-                const storedAvailability = localStorage.getItem('availability');
-                const storedHistory = localStorage.getItem('scheduleHistory');
-                if (storedStaff) staffMembers = JSON.parse(storedStaff);
-                if (storedAvailability) availability = JSON.parse(storedAvailability);
-                if (storedHistory) scheduleHistory = JSON.parse(storedHistory);
-                startDateInput.value = formatDate(new Date());
-                renderAll();
-            }
-
-            function saveData() {
-                localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
-                localStorage.setItem('availability', JSON.stringify(availability));
-                localStorage.setItem('scheduleHistory', JSON.stringify(scheduleHistory));
             }
 
             // --- Rendering Functions ---
@@ -435,53 +501,34 @@
                 });
             }
             
-            // --- Calendar Rendering ---
             function renderCalendar() {
                 calendarGrid.innerHTML = '';
                 calendarWeekdays.innerHTML = '';
-                
                 const year = calendarDate.getFullYear();
                 const month = calendarDate.getMonth();
                 monthYearDisplay.textContent = `${year}年 ${month + 1}月`;
-                
                 ['一', '二', '三', '四', '五'].forEach(day => {
-                    const dayEl = document.createElement('div');
-                    dayEl.textContent = day;
-                    calendarWeekdays.appendChild(dayEl);
+                    const dayEl = document.createElement('div'); dayEl.textContent = day; calendarWeekdays.appendChild(dayEl);
                 });
-                
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=Sun, 1=Mon...
-
-                // Calculate padding for a Monday-start week.
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
                 let paddingDays = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
-
-                for (let i = 0; i < paddingDays; i++) {
-                    calendarGrid.appendChild(document.createElement('div'));
-                }
-                
+                for (let i = 0; i < paddingDays; i++) { calendarGrid.appendChild(document.createElement('div')); }
                 for (let day = 1; day <= daysInMonth; day++) {
                     const currentDate = new Date(year, month, day);
                     const dayOfWeek = currentDate.getDay();
-
-                    // Only render if it's a weekday (Monday to Friday)
                     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                         const dayEl = document.createElement('div');
                         dayEl.textContent = day;
                         dayEl.classList.add('calendar-day');
                         const dateStr = formatDate(currentDate);
-                        
                         if (scheduleHistory[dateStr]) {
-                            dayEl.classList.add('has-schedule');
-                            dayEl.dataset.date = dateStr;
+                            dayEl.classList.add('has-schedule'); dayEl.dataset.date = dateStr;
                         }
                         calendarGrid.appendChild(dayEl);
                     }
                 }
-                // Re-apply search highlight if a search is active
-                if(historySearchInput.value.trim()){
-                    highlightCalendarFromSearch();
-                }
+                if(historySearchInput.value.trim()){ highlightCalendarFromSearch(); }
             }
             
             // --- Event Listeners ---
@@ -491,8 +538,7 @@
                 if (name && !staffMembers.some(p => p.name === name)) {
                     staffMembers.push({ name, category });
                     availability[name] = new Array(5).fill(true);
-                    saveData();
-                    renderAll();
+                    saveDataToFirebase();
                     staffNameInput.value = '';
                 }
             });
@@ -502,8 +548,7 @@
                     const name = event.target.dataset.name;
                     staffMembers = staffMembers.filter(p => p.name !== name);
                     delete availability[name];
-                    saveData();
-                    renderAll();
+                    saveDataToFirebase();
                 }
             });
 
@@ -511,251 +556,121 @@
                 const target = event.target;
                 if (target.classList.contains('schedule-cell')) {
                     const person = target.dataset.person;
-                    const day = parseInt(target.dataset.day);
+                    const day = parseInt(target.dataset.day, 10);
                     availability[person][day] = !availability[person][day];
-                    target.classList.toggle('available');
-                    target.classList.toggle('unavailable');
-                    saveData();
+                    saveDataToFirebase();
                 }
             });
 
-            // View Toggling
             showSchedulerBtn.addEventListener('click', () => {
-                schedulerView.classList.remove('hidden');
-                historyView.classList.add('hidden');
-                showSchedulerBtn.classList.add('active');
-                showHistoryBtn.classList.remove('active');
+                schedulerView.classList.remove('hidden'); historyView.classList.add('hidden');
+                showSchedulerBtn.classList.add('active'); showHistoryBtn.classList.remove('active');
             });
-
             showHistoryBtn.addEventListener('click', () => {
-                schedulerView.classList.add('hidden');
-                historyView.classList.remove('hidden');
-                showSchedulerBtn.classList.remove('active');
-                showHistoryBtn.classList.add('active');
+                schedulerView.classList.add('hidden'); historyView.classList.remove('hidden');
+                showSchedulerBtn.classList.remove('active'); showHistoryBtn.classList.add('active');
                 renderCalendar();
             });
-            
-            // Calendar Navigation
-            prevMonthBtn.addEventListener('click', () => {
-                calendarDate.setMonth(calendarDate.getMonth() - 1);
-                renderCalendar();
-            });
-            
-            nextMonthBtn.addEventListener('click', () => {
-                calendarDate.setMonth(calendarDate.getMonth() + 1);
-                renderCalendar();
-            });
+            prevMonthBtn.addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
+            nextMonthBtn.addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
             
             calendarGrid.addEventListener('click', (e) => {
                 const target = e.target;
                 if (target.classList.contains('has-schedule')) {
                     const dateStr = target.dataset.date;
                     const people = scheduleHistory[dateStr];
-                    
-                    historyScheduleDisplay.innerHTML = `
-                        <h3 class="text-xl font-bold mb-2">${dateStr} 排班人員</h3>
-                        <ul class="list-disc list-inside space-y-1">
-                            ${people.map(p => `<li>${p}</li>`).join('')}
-                        </ul>
-                    `;
-                    
+                    historyScheduleDisplay.innerHTML = `<h3 class="text-xl font-bold mb-2">${dateStr} 排班人員</h3><ul class="list-disc list-inside space-y-1">${people.map(p => `<li>${p}</li>`).join('')}</ul>`;
                     document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
                     target.classList.add('selected');
                 }
             });
 
-            // --- Import / Export Logic ---
-            exportDataBtn.addEventListener('click', () => {
-                try {
-                    const dataToExport = {
-                        staffMembers,
-                        availability,
-                        scheduleHistory
-                    };
-                    const dataStr = JSON.stringify(dataToExport, null, 2);
-                    const blob = new Blob([dataStr], {type: "application/json"});
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `排班系統資料_${formatDate(new Date())}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                } catch (error) {
-                    displayError('匯出資料時發生錯誤: ' + error.message);
-                }
-            });
-
-            importDataInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) {
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        if (importedData.staffMembers && importedData.availability && importedData.scheduleHistory) {
-                            staffMembers = importedData.staffMembers;
-                            availability = importedData.availability;
-                            scheduleHistory = importedData.scheduleHistory;
-                            saveData();
-                            renderAll();
-                            // Optional: Give user feedback
-                            alert('資料已成功匯入！');
-                        } else {
-                            displayError('匯入失敗：檔案格式不符。');
-                        }
-                    } catch (error) {
-                        displayError('匯入失敗：無法解析檔案。請確認檔案是否為正確的 JSON 格式。');
-                    }
-                };
-                reader.readAsText(file);
-                // Reset file input to allow importing the same file again
-                importDataInput.value = '';
-            });
-
-            // --- Search Logic ---
             function performCurrentSearch() {
                 const searchTerm = currentSearchInput.value.trim().toLowerCase();
                 document.querySelectorAll('#scheduleDisplay .schedule-day-item').forEach(item => {
                     item.classList.remove('highlight');
                     if (searchTerm) {
                         const names = Array.from(item.querySelectorAll('li')).map(li => li.textContent.trim().toLowerCase());
-                        if (names.some(name => name.includes(searchTerm))) {
-                            item.classList.add('highlight');
-                        }
+                        if (names.some(name => name.includes(searchTerm))) { item.classList.add('highlight'); }
                     }
                 });
             }
 
             function highlightCalendarFromSearch() {
                 const searchTerm = historySearchInput.value.trim().toLowerCase();
-                // Clear previous highlights first
                 document.querySelectorAll('.calendar-day').forEach(dayEl => dayEl.classList.remove('search-highlight'));
-                
                 if (!searchTerm) return [];
-                
                 const foundDates = Object.keys(scheduleHistory).filter(date => {
                     const people = scheduleHistory[date];
-                    // Defensive check to prevent errors if data is malformed
                     return Array.isArray(people) && people.some(name => typeof name === 'string' && name.toLowerCase().includes(searchTerm));
                 });
-
                 document.querySelectorAll('.calendar-day').forEach(dayEl => {
-                    if (foundDates.includes(dayEl.dataset.date)) {
-                        dayEl.classList.add('search-highlight');
-                    }
+                    if (foundDates.includes(dayEl.dataset.date)) { dayEl.classList.add('search-highlight'); }
                 });
                 return foundDates;
             }
             
             function performHistorySearch() {
-                 const searchTerm = historySearchInput.value.trim();
+                const searchTerm = historySearchInput.value.trim();
                 const foundDates = highlightCalendarFromSearch();
-
                 if (!searchTerm) {
-                    historyScheduleDisplay.innerHTML = '<p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>';
-                    return;
+                    historyScheduleDisplay.innerHTML = '<p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>'; return;
                 }
-                
                 if (foundDates.length > 0) {
-                     historyScheduleDisplay.innerHTML = `
-                        <h3 class="text-xl font-bold mb-2">找到 ${searchTerm} 在以下 ${foundDates.length} 天有排班：</h3>
-                        <ul class="list-disc list-inside space-y-1 max-h-40 overflow-y-auto">
-                            ${foundDates.sort().map(d => `<li>${d}</li>`).join('')}
-                        </ul>
-                    `;
+                    historyScheduleDisplay.innerHTML = `<h3 class="text-xl font-bold mb-2">找到 ${searchTerm} 在以下 ${foundDates.length} 天有排班：</h3><ul class="list-disc list-inside space-y-1 max-h-40 overflow-y-auto">${foundDates.sort().map(d => `<li>${d}</li>`).join('')}</ul>`;
                 } else {
-                     historyScheduleDisplay.innerHTML = `<p class="text-center text-gray-400">在歷史紀錄中找不到 ${searchTerm} 的排班。</p>`;
+                    historyScheduleDisplay.innerHTML = `<p class="text-center text-gray-400">在歷史紀錄中找不到 ${searchTerm} 的排班。</p>`;
                 }
             }
             
             currentSearchBtn.addEventListener('click', performCurrentSearch);
             currentSearchInput.addEventListener('input', performCurrentSearch);
-
             historySearchBtn.addEventListener('click', performHistorySearch);
             historySearchInput.addEventListener('input', performHistorySearch);
 
-
-            // --- Schedule Generation Logic ---
             generateBtn.addEventListener('click', () => {
-                if (staffMembers.length < 3) {
-                    displayError('人員太少，無法排班 (需要至少3人)');
-                    return;
-                }
-                if (!startDateInput.value) {
-                    displayError('請選擇排班開始日期');
-                    return;
-                }
-                
-                scheduleResultContainer.classList.add('hidden');
-                errorMessage.classList.add('hidden');
-                scheduleDisplay.innerHTML = '';
-
-                const maxRetries = 100;
-                let scheduleFound = false;
-                let generatedSchedule = [];
-
-                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                if (staffMembers.length < 3) { displayError('人員太少，無法排班 (需要至少3人)'); return; }
+                if (!startDateInput.value) { displayError('請選擇排班開始日期'); return; }
+                scheduleResultContainer.classList.add('hidden'); errorMessage.classList.add('hidden'); scheduleDisplay.innerHTML = '';
+                let scheduleFound = false, generatedSchedule = [];
+                for (let attempt = 0; attempt < 100; attempt++) {
                     const currentSchedule = new Array(5).fill(null).map(() => []);
                     const workCounts = {};
                     staffMembers.forEach(p => workCounts[p.name] = 0);
                     let validAttempt = true;
-
                     for (let day = 0; day < 5; day++) {
                         const availableCadres = staffMembers.filter(p => p.category === 'cadre' && availability[p.name] && availability[p.name][day]);
                         if (availableCadres.length === 0) { validAttempt = false; break; }
                         const cadreToSchedule = availableCadres.sort((a, b) => workCounts[a.name] - workCounts[b.name])[0];
-                        currentSchedule[day].push(cadreToSchedule.name);
-                        workCounts[cadreToSchedule.name]++;
+                        currentSchedule[day].push(cadreToSchedule.name); workCounts[cadreToSchedule.name]++;
                     }
                     if (!validAttempt) continue;
-
                     for (let day = 0; day < 5; day++) {
                         const availableOthers = staffMembers.filter(p => !currentSchedule[day].includes(p.name) && availability[p.name] && availability[p.name][day]);
                         if (availableOthers.length < 2) { validAttempt = false; break; }
                         const sortedAvailable = availableOthers.sort((a, b) => workCounts[a.name] - workCounts[b.name]);
-                        currentSchedule[day].push(sortedAvailable[0].name);
-                        workCounts[sortedAvailable[0].name]++;
-                        currentSchedule[day].push(sortedAvailable[1].name);
-                        workCounts[sortedAvailable[1].name]++;
+                        currentSchedule[day].push(sortedAvailable[0].name); workCounts[sortedAvailable[0].name]++;
+                        currentSchedule[day].push(sortedAvailable[1].name); workCounts[sortedAvailable[1].name]++;
                     }
                     if (!validAttempt) continue;
-                    
                     const allCountsValid = staffMembers.every(p => { const count = workCounts[p.name]; return count >= 1 && count <= 2; });
-
-                    if (allCountsValid) {
-                        generatedSchedule = currentSchedule;
-                        scheduleFound = true;
-                        break;
-                    }
+                    if (allCountsValid) { generatedSchedule = currentSchedule; scheduleFound = true; break; }
                 }
-
                 if (scheduleFound) {
-                    lastGeneratedSchedule = generatedSchedule; // Store for current search
-                    const scheduleDates = [];
-                    const baseDate = new Date(startDateInput.value + 'T00:00:00');
+                    const scheduleDates = [], baseDate = new Date(startDateInput.value + 'T00:00:00');
                     for(let i=0; i<5; i++){
                         let currentDate = new Date(baseDate);
                         currentDate.setDate(baseDate.getDate() + i);
-                        // Skip weekends when generating schedule dates
                         while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-                           currentDate.setDate(currentDate.getDate() + 1);
-                           baseDate.setDate(baseDate.getDate() + 1); // Also advance the base date
+                           currentDate.setDate(currentDate.getDate() + 1); baseDate.setDate(baseDate.getDate() + 1);
                         }
                         scheduleDates.push(currentDate);
                     }
-                    
                     displaySchedule(generatedSchedule, scheduleDates);
-
                     generatedSchedule.forEach((people, index) => {
-                        const dateStr = formatDate(scheduleDates[index]);
-                        scheduleHistory[dateStr] = people;
+                        scheduleHistory[formatDate(scheduleDates[index])] = people;
                     });
-                    saveData();
-                    renderCalendar();
+                    saveDataToFirebase();
                 } else {
                     displayError('無法找到符合所有條件的排班表，請調整人員空閒狀態或人數。');
                 }
@@ -765,15 +680,9 @@
                 scheduleDisplay.innerHTML = '';
                 schedule.forEach((people, index) => {
                     const dayItem = document.createElement('div');
-                    // Add a specific class for easier selection
                     dayItem.className = 'schedule-day-item bg-gray-700 bg-opacity-30 rounded-lg p-4 space-y-2 transition-all duration-300';
                     const dateStr = dates[index].toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    dayItem.innerHTML = `
-                        <h3 class="text-xl font-bold">${dateStr}</h3>
-                        <ul class="list-disc list-inside space-y-1">
-                            ${people.map(p => `<li>${p}</li>`).join('')}
-                        </ul>
-                    `;
+                    dayItem.innerHTML = `<h3 class="text-xl font-bold">${dateStr}</h3><ul class="list-disc list-inside space-y-1">${people.map(p => `<li>${p}</li>`).join('')}</ul>`;
                     scheduleDisplay.appendChild(dayItem);
                 });
                 scheduleResultContainer.classList.remove('hidden');
@@ -784,8 +693,9 @@
                 errorMessage.classList.remove('hidden');
             }
 
-            // Initial load
-            loadData();
+            // --- Initial Load ---
+            startDateInput.value = formatDate(new Date());
+            initFirebase();
         });
     </script>
 </body>
