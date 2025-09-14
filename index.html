@@ -81,9 +81,9 @@
         .schedule-day-item.highlight { border: 2px solid rgba(255, 215, 0, 0.8); box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
         .schedule-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.5rem; width: 100%; }
         .grid-header, .grid-cell { padding: 0.75rem 1rem; text-align: center; }
-        .schedule-cell { display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.2s; border-radius: 0.5rem; }
-        .schedule-cell.available { background-color: rgba(74, 182, 110, 0.5); border: 2px solid rgba(74, 182, 110, 0.8); }
-        .schedule-cell.unavailable { background-color: rgba(239, 68, 68, 0.4); border: 2px solid rgba(239, 68, 68, 0.7); }
+        .schedule-cell { display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.2s, border 0.2s; border-radius: 0.5rem; }
+        .schedule-cell.available { background-color: rgba(74, 182, 110, 0.4); border: 2px solid rgba(74, 182, 110, 0.8); }
+        .schedule-cell.unavailable { background-color: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.7); }
         #calendar-weekdays, #calendar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
         .calendar-day { display: flex; justify-content: center; align-items: center; height: 40px; border-radius: 50%; transition: background-color 0.2s; position: relative; }
         .calendar-day.has-schedule { background-color: rgba(74, 144, 226, 0.3); cursor: pointer; font-weight: bold; }
