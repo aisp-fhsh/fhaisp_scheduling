@@ -6,18 +6,61 @@
     <title>排班系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        :root {
+            --bg-color-dark: #121212;
+            --bg-color-light: #f0f4f8;
+            --text-color-dark: #e0e0e0;
+            --text-color-light: #1e293b;
+            --container-bg-dark: rgba(255, 255, 255, 0.05);
+            --container-bg-light: rgba(255, 255, 255, 0.8);
+            --border-color-dark: rgba(255, 255, 255, 0.1);
+            --border-color-light: rgba(200, 200, 200, 0.5);
+            --input-bg-dark: rgba(255, 255, 255, 0.1);
+            --input-bg-light: rgba(255, 255, 255, 0.8);
+            --input-border-dark: #374151;
+            --input-border-light: #94a3b8;
+            --btn-bg-dark: rgba(74, 144, 226, 0.7);
+            --btn-bg-light: #3b82f6;
+            --btn-hover-dark: rgba(74, 144, 226, 0.9);
+            --btn-hover-light: #2563eb;
+            --btn-red-dark: rgba(255, 99, 71, 0.7);
+            --btn-red-light: #ef4444;
+            --btn-red-hover-dark: rgba(255, 99, 71, 0.9);
+            --btn-red-hover-light: #dc2626;
+            --toggle-bg-dark: rgba(255, 255, 255, 0.15);
+            --toggle-bg-light: rgba(0, 0, 0, 0.1);
+            --toggle-active-bg-dark: #3b82f6;
+            --toggle-active-bg-light: #3b82f6;
+            --toggle-active-text-dark: #fff;
+            --toggle-active-text-light: #fff;
+            --available-color-dark: rgba(139, 232, 139, 0.3);
+            --available-color-light: rgba(34, 197, 94, 0.2);
+            --unavailable-color-dark: rgba(255, 99, 71, 0.3);
+            --unavailable-color-light: rgba(239, 68, 68, 0.2);
+            --highlight-color-dark: rgba(255, 215, 0, 0.8);
+            --highlight-color-light: rgba(255, 140, 0, 0.8);
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1a202c;
-            color: #e2e8f0;
+            font-family: 'Noto Sans TC', sans-serif;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
             min-height: 100vh;
             padding: 20px;
         }
 
+        body.light-mode {
+            background-color: var(--bg-color-light);
+            color: var(--text-color-light);
+        }
+
         .glass-container {
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: var(--container-bg-dark);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border-color-dark);
             border-radius: 20px;
             padding: 2.5rem;
             width: 100%;
@@ -25,8 +68,15 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            gap: 1.5rem; /* Adjusted gap */
-            margin: 2rem auto; /* Centering the container */
+            gap: 1.5rem;
+            margin: 2rem auto;
+            transition: background-color 0.5s ease, border 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        body.light-mode .glass-container {
+            background-color: var(--container-bg-light);
+            border: 1px solid var(--border-color-light);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
         }
 
         .header-container {
@@ -34,30 +84,61 @@
             justify-content: space-between;
             align-items: center;
             width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .header-container h1 {
+            flex-grow: 1;
+        }
+        
+        .mode-toggle-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .mode-toggle-btn:hover {
+            transform: scale(1.1);
         }
 
         .view-toggle {
             display: flex;
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: var(--toggle-bg-dark);
             border-radius: 9999px;
             padding: 0.25rem;
+        }
+        
+        body.light-mode .view-toggle {
+            background-color: var(--toggle-bg-light);
         }
 
         .toggle-btn {
             padding: 0.5rem 1rem;
             border-radius: 9999px;
             background-color: transparent;
-            color: #a0aec0;
+            color: var(--text-color-dark);
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
         }
+        
+        body.light-mode .toggle-btn {
+            color: var(--text-color-light);
+        }
 
         .toggle-btn.active {
-            background-color: rgba(74, 144, 226, 0.5);
-            color: white;
+            background-color: var(--toggle-active-bg-dark);
+            color: var(--toggle-active-text-dark);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-mode .toggle-btn.active {
+            background-color: var(--toggle-active-bg-light);
+            color: var(--toggle-active-text-light);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .input-group, .schedule-availability, .search-group {
@@ -67,6 +148,19 @@
             align-items: center;
         }
         
+        input, select {
+            background-color: var(--input-bg-dark);
+            border: 1px solid var(--input-border-dark);
+            color: var(--text-color-dark);
+            transition: all 0.3s ease;
+        }
+        
+        body.light-mode input, body.light-mode select {
+            background-color: var(--input-bg-light);
+            border: 1px solid var(--input-border-light);
+            color: var(--text-color-light);
+        }
+
         .schedule-grid {
             display: grid;
             grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -78,15 +172,24 @@
             padding: 0.75rem;
             text-align: center;
             border-radius: 0.5rem;
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: var(--container-bg-dark);
             font-size: 0.875rem;
+            transition: background-color 0.5s ease;
+        }
+        
+        body.light-mode .grid-header, body.light-mode .grid-cell {
+            background-color: var(--container-bg-light);
         }
         
         .grid-header {
             font-weight: bold;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: var(--input-bg-dark);
         }
 
+        body.light-mode .grid-header {
+            background-color: var(--input-bg-light);
+        }
+        
         .schedule-cell {
             display: flex;
             align-items: center;
@@ -96,24 +199,37 @@
         }
 
         .schedule-cell.available {
-            background-color: rgba(139, 232, 139, 0.3);
+            background-color: var(--available-color-dark);
+        }
+        
+        body.light-mode .schedule-cell.available {
+            background-color: var(--available-color-light);
         }
 
         .schedule-cell.unavailable {
-            background-color: rgba(255, 99, 71, 0.3);
+            background-color: var(--unavailable-color-dark);
+        }
+        
+        body.light-mode .schedule-cell.unavailable {
+            background-color: var(--unavailable-color-light);
         }
 
         .person-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: var(--input-bg-dark);
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
+            transition: background-color 0.5s ease;
+        }
+        
+        body.light-mode .person-item {
+            background-color: var(--input-bg-light);
         }
 
         .btn {
-            background-color: rgba(74, 144, 226, 0.5);
+            background-color: var(--btn-bg-dark);
             color: white;
             padding: 0.75rem 1.5rem;
             border-radius: 9999px;
@@ -127,7 +243,15 @@
         }
 
         .btn:hover {
-            background-color: rgba(74, 144, 226, 0.7);
+            background-color: var(--btn-hover-dark);
+        }
+        
+        body.light-mode .btn {
+            background-color: var(--btn-bg-light);
+        }
+        
+        body.light-mode .btn:hover {
+            background-color: var(--btn-hover-light);
         }
         
         .btn-sm {
@@ -135,18 +259,30 @@
         }
 
         .btn-red {
-            background-color: rgba(255, 99, 71, 0.5);
+            background-color: var(--btn-red-dark);
         }
 
         .btn-red:hover {
-            background-color: rgba(255, 99, 71, 0.7);
+            background-color: var(--btn-red-hover-dark);
+        }
+        
+        body.light-mode .btn-red {
+            background-color: var(--btn-red-light);
+        }
+        
+        body.light-mode .btn-red:hover {
+            background-color: var(--btn-red-hover-light);
         }
         
         .schedule-day-item.highlight {
-            border: 2px solid rgba(255, 215, 0, 0.8);
+            border: 2px solid var(--highlight-color-dark);
             box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
         }
-
+        
+        body.light-mode .schedule-day-item.highlight {
+            border: 2px solid var(--highlight-color-light);
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
+        }
 
         /* Calendar Styles */
         #calendar-weekdays,
@@ -155,6 +291,7 @@
             grid-template-columns: repeat(5, 1fr);
             gap: 0.5rem;
         }
+        
         .calendar-day {
             display: flex;
             justify-content: center;
@@ -164,26 +301,47 @@
             transition: background-color 0.2s;
             position: relative;
         }
+        
         .calendar-day.has-schedule {
-            background-color: rgba(74, 144, 226, 0.3);
+            background-color: var(--btn-bg-dark);
             cursor: pointer;
             font-weight: bold;
         }
-         .calendar-day.has-schedule:hover {
-            background-color: rgba(74, 144, 226, 0.5);
+        
+        body.light-mode .calendar-day.has-schedule {
+            background-color: var(--btn-bg-light);
         }
+        
+        .calendar-day.has-schedule:hover {
+            background-color: var(--btn-hover-dark);
+        }
+        
+        body.light-mode .calendar-day.has-schedule:hover {
+            background-color: var(--btn-hover-light);
+        }
+        
         .calendar-day.selected {
-            background-color: rgba(74, 144, 226, 0.7);
+            background-color: var(--btn-hover-dark);
             color: white;
         }
+        
+        body.light-mode .calendar-day.selected {
+            background-color: var(--btn-hover-light);
+            color: white;
+        }
+        
         .calendar-day.search-highlight {
-            background-color: rgba(255, 215, 0, 0.2); /* More transparent background */
-            border: 2px solid rgba(255, 215, 0, 0.8); /* Stronger border */
-            /* Enhanced shadow for a better "glow" effect */
+            background-color: rgba(255, 215, 0, 0.2);
+            border: 2px solid var(--highlight-color-dark);
             box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.5);
             border-radius: 50%;
         }
-
+        
+        body.light-mode .calendar-day.search-highlight {
+            background-color: rgba(255, 140, 0, 0.2);
+            border: 2px solid var(--highlight-color-light);
+            box-shadow: 0 0 15px 5px rgba(255, 140, 0, 0.5);
+        }
 
         @media (max-width: 640px) {
             body {
@@ -206,40 +364,50 @@
             .schedule-availability .grid-header {
                 display: none;
             }
+            .header-container .view-toggle {
+                margin-top: 1rem;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200">
+<body class="dark-mode">
 
     <div class="glass-container">
         <div class="header-container">
             <h1 class="text-4xl font-bold text-center">排班系統</h1>
-            <div class="view-toggle">
-                <button id="showSchedulerBtn" class="toggle-btn active">排班</button>
-                <button id="showHistoryBtn" class="toggle-btn">歷史紀錄</button>
+            <div class="flex items-center gap-4">
+                <button id="modeToggleBtn" class="mode-toggle-btn">
+                    <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-white" viewBox="0 0 16 16">
+                        <path d="M6 .278a.76.76 0 0 0 .08-.858 1 1 0 0 0-.894-.367c-.201 0-.414.1-.57.258a.747.747 0 0 0-.279.882 1 1 0 0 0-.022.253 1 1 0 0 0-.01.213c0 .02.001.038.002.06.02.404.282.802.417 1.096a.86.86 0 0 0 .19.336.864.864 0 0 0 .341.192.652.652 0 0 0 .468.087 1.034 1.034 0 0 0 .167-.024.76.76 0 0 0-.08-.858zm2.673 1.488c-.69.076-1.397.35-2.071.748-.68.4-1.28.9-1.748 1.474-.474.577-.852 1.196-1.125 1.839-.28.647-.442 1.34-.442 2.046 0 1.258.583 2.378 1.583 3.197.668.544 1.503.953 2.454 1.25.96.3 2.016.447 3.093.447 1.343 0 2.65-.295 3.864-.88-.475.46-1.076.786-1.728.995-1.08.34-2.228.48-3.418.48-.962 0-1.895-.12-2.784-.36-.889-.24-1.696-.58-2.415-1.01-1.43-.88-2.457-2.15-2.92-3.69-.153-.51-.237-1.03-.237-1.55 0-.96.26-1.88.78-2.67.52-.79 1.21-1.42 2.05-1.9L8.71 1.766z"/>
+                    </svg>
+                    <svg id="sunIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-yellow-500 hidden" viewBox="0 0 16 16">
+                        <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.535a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM3.05 4.343a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1-.707.707L3.05 4.343z"/>
+                    </svg>
+                </button>
+                <div class="view-toggle">
+                    <button id="showSchedulerBtn" class="toggle-btn active">排班</button>
+                    <button id="showHistoryBtn" class="toggle-btn">歷史紀錄</button>
+                </div>
             </div>
         </div>
 
-        <!-- 排班主畫面 -->
         <div id="schedulerView">
-            <!-- 人員名單管理 -->
             <div class="space-y-4">
                 <h2 class="text-2xl font-semibold">人員管理</h2>
                 <div class="input-group">
-                    <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
-                    <select id="staffCategorySelect" class="p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="staffNameInput" class="flex-grow p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入工作人員姓名">
+                    <select id="staffCategorySelect" class="p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="member">成員</option>
                         <option value="cadre">幹部</option>
                     </select>
                     <button id="addStaffBtn" class="btn">新增人員</button>
                 </div>
-                 <div class="flex gap-4 mt-2">
+                <div class="flex gap-4 mt-2">
                     <button id="exportDataBtn" class="btn btn-sm">匯出成 Excel (CSV)</button>
                 </div>
                 <div id="staffList" class="space-y-2"></div>
             </div>
 
-            <!-- 空閒狀態設定 -->
             <div class="space-y-4">
                 <h2 class="text-2xl font-semibold">設定每日空閒狀態</h2>
                 <p class="text-sm text-gray-400">點擊方格來切換人員當天是否有空。</p>
@@ -256,26 +424,23 @@
                 </div>
             </div>
             
-            <!-- 開始日期 -->
             <div class="space-y-2">
                 <label for="startDateInput" class="text-lg font-semibold">排班開始日期</label>
-                <input type="date" id="startDateInput" class="w-full p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="startDateInput" class="w-full p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
-            <!-- 產生排班表 -->
             <div class="flex justify-center mt-4">
                 <button id="generateBtn" class="btn btn-red">產生排班表</button>
             </div>
 
-            <!-- 排班表顯示區 -->
             <div id="scheduleResult" class="space-y-4 hidden">
-                 <div class="flex justify-between items-center flex-wrap gap-4">
+                <div class="flex justify-between items-center flex-wrap gap-4">
                     <h2 class="text-2xl font-semibold">排班表</h2>
                     <div class="search-group">
-                        <input type="text" id="currentSearchInput" class="p-2 w-48 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="查詢姓名...">
+                        <input type="text" id="currentSearchInput" class="p-2 w-48 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="查詢姓名...">
                         <button id="currentSearchBtn" class="btn btn-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                             </svg>
                         </button>
                     </div>
@@ -283,22 +448,20 @@
                 <div id="scheduleDisplay" class="space-y-4"></div>
             </div>
 
-            <!-- 錯誤訊息 -->
             <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
         </div>
 
-        <!-- 歷史紀錄畫面 -->
         <div id="historyView" class="hidden">
             <div class="search-group mb-4">
-                <input type="text" id="historySearchInput" class="flex-grow p-3 rounded-lg bg-gray-700 bg-opacity-50 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名查詢歷史紀錄">
+                <input type="text" id="historySearchInput" class="flex-grow p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名查詢歷史紀錄">
                 <button id="historySearchBtn" class="btn btn-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                     </svg>
                     <span class="ml-2">查詢</span>
                 </button>
             </div>
-            <div id="calendar-container" class="bg-gray-800 bg-opacity-50 p-6 rounded-lg">
+            <div id="calendar-container" class="bg-gray-800 bg-opacity-50 p-6 rounded-lg transition-colors duration-500">
                 <div id="calendar-header" class="flex justify-between items-center mb-4">
                     <button id="prevMonthBtn" class="btn p-2 w-10 h-10">&lt;</button>
                     <h3 id="monthYearDisplay" class="text-xl font-bold"></h3>
@@ -307,7 +470,7 @@
                 <div id="calendar-weekdays" class="grid grid-cols-5 gap-2 mb-2 text-center text-gray-400 font-bold"></div>
                 <div id="calendar-grid" class="grid grid-cols-5 gap-2"></div>
             </div>
-            <div id="historyScheduleDisplay" class="mt-4 p-4 bg-gray-800 bg-opacity-50 rounded-lg min-h-[100px]">
+            <div id="historyScheduleDisplay" class="mt-4 p-4 rounded-lg min-h-[100px] transition-colors duration-500">
                 <p class="text-center text-gray-400">請點擊上方有紀錄的日期來查看排班表</p>
             </div>
         </div>
@@ -348,14 +511,44 @@
             const calendarGrid = document.getElementById('calendar-grid');
             const historyScheduleDisplay = document.getElementById('historyScheduleDisplay');
             
+            // Mode Toggle Elements
+            const modeToggleBtn = document.getElementById('modeToggleBtn');
+            const moonIcon = document.getElementById('moonIcon');
+            const sunIcon = document.getElementById('sunIcon');
+            
             const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五'];
             
             // Data State
-            let staffMembers = []; 
+            let staffMembers = [];  
             let availability = {};
             let scheduleHistory = {};
             let calendarDate = new Date();
             let lastGeneratedStartDate = null;
+
+            // --- Dark/Light Mode Logic ---
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            if (currentTheme === 'light') {
+                document.body.classList.add('light-mode');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            } else {
+                document.body.classList.remove('light-mode');
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+
+            modeToggleBtn.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+                localStorage.setItem('theme', theme);
+                if (theme === 'light') {
+                    moonIcon.classList.add('hidden');
+                    sunIcon.classList.remove('hidden');
+                } else {
+                    moonIcon.classList.remove('hidden');
+                    sunIcon.classList.add('hidden');
+                }
+            });
 
             // --- Utility Functions ---
             function formatDate(date) {
@@ -384,7 +577,7 @@
                         for (let i = 0; i < 5; i++) {
                             // Skip weekends
                             while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-                               currentDate.setDate(currentDate.getDate() + 1);
+                                currentDate.setDate(currentDate.getDate() + 1);
                             }
                             const dateKey = formatDate(currentDate);
                             if (scheduleHistory[dateKey]) {
@@ -399,7 +592,7 @@
                         }
                         
                         if (lastSchedule.length === 5) {
-                             displaySchedule(lastSchedule, lastDates);
+                            displaySchedule(lastSchedule, lastDates);
                         }
 
                     } catch (e) {
@@ -416,7 +609,7 @@
                 localStorage.setItem('staffMembers', JSON.stringify(staffMembers));
                 localStorage.setItem('availability', JSON.stringify(availability));
                 localStorage.setItem('scheduleHistory', JSON.stringify(scheduleHistory));
-                 if (lastGeneratedStartDate) {
+                if (lastGeneratedStartDate) {
                     localStorage.setItem('lastGeneratedStartDate', lastGeneratedStartDate);
                 } else {
                     localStorage.removeItem('lastGeneratedStartDate');
@@ -571,8 +764,7 @@
 
             showHistoryBtn.addEventListener('click', () => {
                 schedulerView.classList.add('hidden');
-                historyView.classList.remove('hidden');
-                showSchedulerBtn.classList.remove('active');
+                historyView.classList.remove('active');
                 showHistoryBtn.classList.add('active');
                 renderCalendar();
             });
@@ -615,8 +807,7 @@
                     }
 
                     // Add BOM for Excel to recognize UTF-8 encoding
-                    let csvContent = '\uFEFF';
-                    csvContent += "日期,上班人員\r\n"; // CSV Header
+                    let csvContent = '\uFEFF';csvContent += "日期,上班人員\r\n"; // CSV Header
 
                     // Sort dates before exporting for a clean, chronological list
                     const sortedDates = Object.keys(scheduleHistory).sort();
@@ -796,8 +987,7 @@
                         
                         while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
                            currentDate.setDate(currentDate.getDate() + 1);
-                           baseDate.setDate(baseDate.getDate() + 1); 
-                        }
+                           baseDate.setDate(baseDate.getDate() + 1);                       }
                         scheduleDates.push(currentDate);
                     }
                     
@@ -847,4 +1037,3 @@
     </script>
 </body>
 </html>
-
