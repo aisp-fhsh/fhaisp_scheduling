@@ -13,29 +13,26 @@
             padding: 20px;
             transition: background-color 0.3s, color 0.3s;
         }
-        .main-container {
-            display: flex;
-            gap: 2rem;
-            width: 100%;
-            max-width: 1200px;
-            margin: 1rem auto;
-        }
-        .left-panel, .right-panel {
+        .glass-container {
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 2rem;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 900px;
             box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin: 2rem auto;
             transition: background-color 0.3s, border 0.3s;
         }
-        .left-panel { flex: 1; min-width: 320px; }
-        .right-panel { flex: 2; }
 
         /* --- Dark Mode --- */
         body.dark {
             background-color: #1a202c;
             color: #e2e8f0;
         }
-        body.dark .left-panel, body.dark .right-panel {
+        body.dark .glass-container {
             background-color: rgba(45, 55, 72, 0.5);
             border: 1px solid rgba(255,255,255,0.1);
         }
@@ -58,7 +55,7 @@
             background-color: #f0f4f8;
             color: #1a202c;
         }
-        body.light .left-panel, body.light .right-panel {
+        body.light .glass-container {
             background-color: rgba(255,255,255,0.7);
             border: 1px solid rgba(0,0,0,0.1);
         }
@@ -95,12 +92,10 @@
         .calendar-day.search-highlight { background-color: rgba(255, 215, 0, 0.2); border: 2px solid rgba(255, 215, 0, 0.8); box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.5); border-radius: 50%; }
         .person-item { display: flex; justify-content: space-between; align-items: center; }
         
-        @media (max-width: 1024px) {
-            .main-container { flex-direction: column; }
-        }
         @media (max-width: 640px) {
             body { padding: 10px; }
-            .left-panel, .right-panel { padding: 1.5rem; }
+            .glass-container { padding: 1.5rem; }
+            .header-container { flex-direction: column; gap: 1rem; }
             .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid-header { display: none; }
             .schedule-availability .grid-header { display: none; }
@@ -109,8 +104,8 @@
 </head>
 <body class="dark">
 
-    <div class="max-w-screen-xl mx-auto px-4">
-        <header class="flex justify-between items-center py-6">
+    <div class="glass-container">
+        <div class="flex justify-between items-center">
             <h1 class="text-4xl font-bold">排班系統</h1>
             <div class="flex items-center gap-4">
                  <button id="theme-toggle" class="p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white transition">
@@ -122,13 +117,14 @@
                     <button id="showHistoryBtn" class="toggle-btn px-4 py-2 text-sm rounded-lg">歷史紀錄</button>
                 </div>
             </div>
-        </header>
+        </div>
 
-        <main class="main-container">
-            <!-- Left Panel for Staff Management -->
-            <div class="left-panel space-y-6">
-                <h2 class="text-2xl font-bold">人員管理</h2>
+        <!-- Main content that switches -->
+        <div id="schedulerView">
+            <div class="space-y-6">
+                <!-- Staff Management -->
                 <div class="space-y-4">
+                    <h2 class="text-2xl font-bold">人員管理</h2>
                     <div class="flex items-center gap-2">
                         <input type="text" id="staffNameInput" class="flex-grow p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名">
                         <select id="staffCategorySelect" class="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -140,72 +136,71 @@
                     <div>
                          <button id="exportDataBtn" class="btn text-sm">匯出成 Excel (CSV)</button>
                     </div>
+                    <div id="staffList" class="space-y-2"></div>
                 </div>
-                <div id="staffList" class="space-y-2"></div>
-            </div>
 
-            <!-- Right Panel for Scheduling and History -->
-            <div class="right-panel space-y-6">
-                 <!-- Scheduler View -->
-                <div id="schedulerView">
-                    <div class="space-y-6">
-                        <div>
-                            <h2 class="text-2xl font-semibold mb-2">設定每日空閒狀態</h2>
-                            <p class="text-sm text-gray-400 mb-4">點擊方格來切換人員當天是否有空。</p>
-                            <div class="schedule-availability">
-                                <div class="schedule-grid">
-                                    <div class="grid-header rounded-lg">姓名</div>
-                                    <div class="grid-header rounded-lg">星期一</div>
-                                    <div class="grid-header rounded-lg">星期二</div>
-                                    <div class="grid-header rounded-lg">星期三</div>
-                                    <div class="grid-header rounded-lg">星期四</div>
-                                    <div class="grid-header rounded-lg">星期五</div>
-                                    <div id="availabilityGrid" class="contents"></div>
-                                </div>
-                            </div>
+                <!-- Availability Setup -->
+                <div>
+                    <h2 class="text-2xl font-semibold mb-2">設定每日空閒狀態</h2>
+                    <p class="text-sm text-gray-400 mb-4">點擊方格來切換人員當天是否有空。</p>
+                    <div class="schedule-availability">
+                        <div class="schedule-grid">
+                            <div class="grid-header rounded-lg">姓名</div>
+                            <div class="grid-header rounded-lg">星期一</div>
+                            <div class="grid-header rounded-lg">星期二</div>
+                            <div class="grid-header rounded-lg">星期三</div>
+                            <div class="grid-header rounded-lg">星期四</div>
+                            <div class="grid-header rounded-lg">星期五</div>
+                            <div id="availabilityGrid" class="contents"></div>
                         </div>
-                        <div>
-                            <label for="startDateInput" class="text-2xl font-semibold mb-2 block">排班開始日期</label>
-                            <input type="date" id="startDateInput" class="w-full p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="flex justify-center">
-                            <button id="generateBtn" class="btn btn-red px-8 py-3 text-lg">產生排班表</button>
-                        </div>
-                        <div id="scheduleResult" class="space-y-4 hidden">
-                             <div class="flex justify-between items-center flex-wrap gap-4">
-                                <h2 class="text-2xl font-semibold">排班表</h2>
-                                <div class="search-group flex items-center">
-                                    <input type="text" id="currentSearchInput" class="p-2 w-48 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="查詢姓名...">
-                                    <button id="currentSearchBtn" class="btn ml-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></button>
-                                </div>
-                            </div>
-                            <div id="scheduleDisplay" class="space-y-4"></div>
-                        </div>
-                        <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
                     </div>
                 </div>
 
-                <!-- History View -->
-                <div id="historyView" class="hidden">
-                     <div class="search-group mb-4">
-                        <input type="text" id="historySearchInput" class="flex-grow p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名查詢歷史紀錄">
-                        <button id="historySearchBtn" class="btn ml-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></button>
-                    </div>
-                    <div id="calendar-container" class="p-4 rounded-lg">
-                        <div id="calendar-header" class="flex justify-between items-center mb-4">
-                            <button id="prevMonthBtn" class="btn p-2 w-10 h-10">&lt;</button>
-                            <h3 id="monthYearDisplay" class="text-xl font-bold"></h3>
-                            <button id="nextMonthBtn" class="btn p-2 w-10 h-10">&gt;</button>
-                        </div>
-                        <div id="calendar-weekdays" class="grid grid-cols-5 gap-2 mb-2 text-center font-bold"></div>
-                        <div id="calendar-grid" class="grid grid-cols-5 gap-2"></div>
-                    </div>
-                    <div id="historyScheduleDisplay" class="mt-4 p-4 rounded-lg min-h-[100px]">
-                        <p class="text-center">請點擊上方有紀錄的日期來查看排班表</p>
-                    </div>
+                <!-- Start Date -->
+                <div>
+                    <label for="startDateInput" class="text-2xl font-semibold mb-2 block">排班開始日期</label>
+                    <input type="date" id="startDateInput" class="w-full p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
+
+                <!-- Generate Button -->
+                <div class="flex justify-center">
+                    <button id="generateBtn" class="btn btn-red px-8 py-3 text-lg">產生排班表</button>
+                </div>
+
+                <!-- Schedule Result -->
+                <div id="scheduleResult" class="space-y-4 hidden">
+                     <div class="flex justify-between items-center flex-wrap gap-4">
+                        <h2 class="text-2xl font-semibold">排班表</h2>
+                        <div class="search-group flex items-center">
+                            <input type="text" id="currentSearchInput" class="p-2 w-48 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="查詢姓名...">
+                            <button id="currentSearchBtn" class="btn ml-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></button>
+                        </div>
+                    </div>
+                    <div id="scheduleDisplay" class="space-y-4"></div>
+                </div>
+                <div id="errorMessage" class="text-red-400 text-center font-bold hidden"></div>
             </div>
-        </main>
+        </div>
+
+        <!-- History View -->
+        <div id="historyView" class="hidden space-y-6">
+             <div class="search-group">
+                <input type="text" id="historySearchInput" class="flex-grow p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="輸入姓名查詢歷史紀錄">
+                <button id="historySearchBtn" class="btn ml-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg></button>
+            </div>
+            <div id="calendar-container" class="p-4 rounded-lg">
+                <div id="calendar-header" class="flex justify-between items-center mb-4">
+                    <button id="prevMonthBtn" class="btn p-2 w-10 h-10">&lt;</button>
+                    <h3 id="monthYearDisplay" class="text-xl font-bold"></h3>
+                    <button id="nextMonthBtn" class="btn p-2 w-10 h-10">&gt;</button>
+                </div>
+                <div id="calendar-weekdays" class="grid grid-cols-5 gap-2 mb-2 text-center font-bold"></div>
+                <div id="calendar-grid" class="grid grid-cols-5 gap-2"></div>
+            </div>
+            <div id="historyScheduleDisplay" class="mt-4 p-4 rounded-lg min-h-[100px]">
+                <p class="text-center">請點擊上方有紀錄的日期來查看排班表</p>
+            </div>
+        </div>
     </div>
 
     <script>
